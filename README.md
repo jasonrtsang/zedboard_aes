@@ -53,16 +53,3 @@ Project is currently **in progress**, below is the complicated overview of the s
   * Any new projects within the SDK should be saved here 
   * `/main`
   * `/sd_bsp_0`
-
-## Tags
-
-#### Milestone 1
-
-Based off the repository [Tiny AES in C](https://github.com/kokke/tiny-AES-c), the ECB and CBC algorithms were sourced. From there, the code was further stripped into the essentials needed for this project and a bare-metal application was created to run these algorithms. Verbose print statements were injected between stages/ between processing blocks. Instead of using hardcoded test strings, SD card support was implemented. The cipher key remained hardcoded however for convenience. For the application, a console-based design was made with the following menu choices:
-* Input '1' to Format SD card
-* Input '2' to Create TEST.BIN file
-* Input '3' to Specify current file
-* Input '4' to Enter CBC mode submenu
-* Input '5' to Enter ECB mode submenu
-* Input '6' to Byte compare two files
-* Toggle 'SW0' high for verbose output
