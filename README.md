@@ -1,6 +1,7 @@
 # AES Encryption/ Decryption on ZedBoard
 
 Project is currently **in progress**, below is the complicated overview of the source control for this ZedBoard project...
+Specific implementation details to come...
 
 #### Vivado File Structure
 * `./ip_repo` (if exists, holds custom IP blocks)
