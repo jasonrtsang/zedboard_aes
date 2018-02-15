@@ -19,22 +19,21 @@ vivado_pid*
 # --- SDK specific ---
 
 # exclude some obscure hidden SDK folders
-/SDK/.metadata/
-/SDK/webtalk/
-/SDK/RemoteSystemsTempFiles/
+/sdk/.metadata/
+/sdk/webtalk/
+/sdk/RemoteSystemsTempFiles/
 
 # hw_platform : exclude the entire hw_platform folder, as
 # we'll regenerate everything from the .hdf file
 # make sure to include the bitstream in the .hdf file when exporting
 # from Vivado!
-/SDK/design_1_wrapper_hw_platform_0/
 
 # BSP : only keep .cproject, .project, .sdkproject, .system.mss
 # and Makefile
 # i.e. the ps7_cortexa9_0 lib files are regenerated automatically
-/SDK/ZynqSNaP_bsp/ps7_cortexa9_0/
+/sdk/sd_bsp_0/ps7_cortexa9_0/
 
 # Application : keep everything, except ignored file patterns
-/SDK/**/*.o
-/SDK/**/*.d
-/SDK/**/*.a
+/sdk/**/*.o
+/sdk/**/*.d
+/sdk/**/*.a
