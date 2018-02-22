@@ -1,10 +1,13 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.aes_lib.all;
 
 entity KeyExpansion_v1_0_S00_AXI is
 	generic (
 		-- Users to add parameters here
+		
+		mode    : AES_MODE := ENCRYPTION;
 
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
@@ -16,6 +19,10 @@ entity KeyExpansion_v1_0_S00_AXI is
 	);
 	port (
 		-- Users to add ports here
+
+        i     : in  STATE;
+        k     : in  WORD_ARRAY (0 to 3);
+        o     : out STATE;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -81,7 +88,7 @@ entity KeyExpansion_v1_0_S00_AXI is
     		-- accept the read data and response information.
 		S_AXI_RREADY	: in std_logic
 	);
-end KeyExpansion_v1_0_S00_AXI;
+end KeyExpansion_v1_0_S00_AXI;s
 
 architecture arch_imp of KeyExpansion_v1_0_S00_AXI is
 
@@ -117,6 +124,26 @@ architecture arch_imp of KeyExpansion_v1_0_S00_AXI is
 	signal reg_data_out	:std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
+	
+	component keyExpansion_128   
+	   generic (mode : AES_MODE := DECRYPTION);     
+        port (
+            k : in  WORD_ARRAY  (0 to  3);
+            o : out STATE_ARRAY (0 to 10));
+    end component keyExpansion_128;
+
+	type ROUND_TYPE is (round0, round1, round2, round3, round4, round5, round6, round7, 
+							  round8, round9, round10, round11, round12, round13, round14);
+							  
+	signal round : ROUND_TYPE;	
+	signal key_schedule : STATE_ARRAY (0 to 10);
+	signal curr_key : STATE;
+	signal curr_state : STATE;
+	signal next_state : STATE;
+	signal first_state : STATE;
+	signal slv_reg0_byte : BYTE;
+	signal slv_reg0_word : WORD;
+	signal slv_reg0_word_array : WORD_ARRAY;
 
 begin
 	-- I/O Connections assignments
@@ -384,7 +411,21 @@ begin
 
 
 	-- Add user logic here
+    slv_reg0_word <= (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0));
+    slv_reg0_word_array <= (
+    (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
+    (slv_reg1(31 downto 24), slv_reg1(23 downto 16), slv_reg1(15 downto 8), slv_reg1(7 downto 0)),
+    (slv_reg2(31 downto 24), slv_reg2(23 downto 16), slv_reg2(15 downto 8), slv_reg2(7 downto 0)),
+    (slv_reg3(31 downto 24), slv_reg3(23 downto 16), slv_reg3(15 downto 8), slv_reg3(7 downto 0))
+    );
 
+	keyExpansion_128P : keyExpansion_128 
+	generic map (
+	    mode => mode)
+	port map(
+	    k => slv_reg0_word_array,
+        o => key_schedule);
+	
 	-- User logic ends
 
 end arch_imp;
