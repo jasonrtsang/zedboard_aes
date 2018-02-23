@@ -12,7 +12,7 @@ entity Add_Round_Key_v0_5 is
 
 		-- Parameters of Axi Slave Bus Interface S00_AXI
 		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S00_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S00_AXI_ADDR_WIDTH	: integer	:= 6
 	);
 	port (
 		-- Users to add ports here
@@ -52,7 +52,7 @@ architecture arch_imp of Add_Round_Key_v0_5 is
 	component Add_Round_Key_v0_5_S00_AXI is
 		generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_ADDR_WIDTH	: integer	:= 6
 		);
 		port (
 		S_AXI_ACLK	: in std_logic;
