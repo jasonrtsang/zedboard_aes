@@ -412,14 +412,20 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	uint32_t state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
 	*(baseaddr_p+3) = state_3;
 
-	uint32_t key_0 = RoundKey[3] | RoundKey[2] << 8 | RoundKey[1] << 16 | RoundKey[0] << 24;
-	*(baseaddr_p+4) = key_0;
-	uint32_t key_1 = RoundKey[7] | RoundKey[6] << 8 | RoundKey[5] << 16 | RoundKey[4] << 24;
-	*(baseaddr_p+5) = key_1;
-	uint32_t key_2 = RoundKey[11] | RoundKey[10] << 8 | RoundKey[9] << 16 | RoundKey[8] << 24;
-	*(baseaddr_p+6) = key_2;
-	uint32_t key_3 = RoundKey[15] | RoundKey[14] << 8 | RoundKey[13] << 16 | RoundKey[12] << 24;
-	*(baseaddr_p+7) = key_3;
+	int r = 0;
+	uint32_t key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+4) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+5) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+6) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+7) = key_word;
+
 
 	state_t* state_block = 0;
 	int i, j, k;
@@ -434,14 +440,14 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 		k++;
 	}
 
-	pstate(Nr, "First: AddRoundKey (hw)", state_block);
+	pstate(0, "First: AddRoundKey (HW)", state_block);
 
 	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
 
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(0, state, RoundKey);
 
-  pstate(Nr, "First: AddRoundKey (sw)", state);
+  pstate(0, "First: AddRoundKey (SW)", state);
 
   // There will be Nr rounds.
   // The first Nr-1 rounds are identical.
@@ -451,14 +457,95 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
     SubBytes(state);
     ShiftRows(state);
     MixColumns(state);
+
+
+    /* ADD ROUND IP BLOCK INPUT BOTCH */
+
+	state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(baseaddr_p+0) = state_0;
+	state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
+	*(baseaddr_p+1) = state_1;
+	state_2 = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
+	*(baseaddr_p+2) = state_2;
+	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
+	*(baseaddr_p+3) = state_3;
+
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+4) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+5) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+6) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+7) = key_word;
+
+	k = 8;
+	for (i = 0; i < 4; i++) {
+		j = 0;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 24) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 16) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 8) & 0xFF;
+		(*state_block)[i][j] = *(baseaddr_p+k) & 0xFF;
+		k++;
+	}
+
+	pstate(round, "Loop: AddRoundKey (HW)", state_block);
+
+	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+
     AddRoundKey(round, state, RoundKey);
+    pstate(round, "Loop: AddRoundKey (SW)", state);
   }
 
   // The last round is given below.
   // The MixColumns function is not here in the last round.
   SubBytes(state);
   ShiftRows(state);
+
+  /* ADD ROUND IP BLOCK INPUT BOTCH */
+
+  	state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+  	*(baseaddr_p+0) = state_0;
+  	state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
+  	*(baseaddr_p+1) = state_1;
+  	state_2 = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
+  	*(baseaddr_p+2) = state_2;
+  	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
+  	*(baseaddr_p+3) = state_3;
+
+  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+  	r+=4;
+  	*(baseaddr_p+4) = key_word;
+  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+  	r+=4;
+  	*(baseaddr_p+5) = key_word;
+  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+  	r+=4;
+  	*(baseaddr_p+6) = key_word;
+  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+  	r+=4;
+  	*(baseaddr_p+7) = key_word;
+
+  	k = 8;
+  	for (i = 0; i < 4; i++) {
+  		j = 0;
+  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 24) & 0xFF;
+  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 16) & 0xFF;
+  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 8) & 0xFF;
+  		(*state_block)[i][j] = *(baseaddr_p+k) & 0xFF;
+  		k++;
+  	}
+
+  	pstate(round, "Loop: AddRoundKey (HW)", state_block);
+
+  	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+
   AddRoundKey(Nr, state, RoundKey);
+  pstate(Nr, "Last: AddRoundKey (SW)", state);
 }
 
 static void InvCipher(state_t* state,uint8_t* RoundKey)
