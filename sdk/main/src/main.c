@@ -26,6 +26,9 @@
 #include "xplatform_info.h"
 #include "xsdps.h"
 
+#include "xbasic_types.h"
+#include "xparameters.h"
+
 
 /************************** Defines Prototypes *******************************/
 
@@ -73,7 +76,7 @@ int main(void)
     const uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
     /* Universally used variables */
-    int i, menuChoice, modeChoice, testBinChoice;
+    int i, j, menuChoice, modeChoice, testBinChoice;
     uint32_t fileSizeRead;
 
     const TCHAR *Path = "0:/"; // Base directory of SD
@@ -89,6 +92,7 @@ int main(void)
     uint32_t readSW0 = 0;
 
     struct AES_ctx ctx; // Context
+    struct AES_ctx ctx_block; // Context
 
     bool exitFlag = false; // Application closure
 
@@ -277,6 +281,40 @@ int main(void)
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx(&ctx, key);
+
+
+                        /* KEY EXPANSION IP BLOCK INPUT BOTCH */
+                        uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
+
+                        uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
+                        *(baseaddr_p+0) = input_0;
+                        uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
+                        *(baseaddr_p+1) = input_1;
+                        uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
+                        *(baseaddr_p+2) = input_2;
+                        uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
+                        *(baseaddr_p+3) = input_3;
+
+                        j = 0;
+						for (i = 4; i < 48; i++) {
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
+							ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
+						}
+
+						for (i = 0; i < 176; i++) {
+							printf("%.2x ", ctx_block.RoundKey[i]);
+						}
+						printf("ctx_block.RoundKey(0)\r\n\n");
+
+						for (i = 0; i < 176; i++) {
+							printf("%.2x ", ctx.RoundKey[i]);
+						}
+						printf("ctx.RoundKey(0)\r\n");
+
+						/* KEY EXPANSION IP BLOCK INPUT BOTCH END*/
+
                         AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead, readSW0);
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */

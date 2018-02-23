@@ -14,7 +14,7 @@ LIBSOURCES=*.c
 OUTS = *.o
 
 libs:
-	echo "Compiling KeyExpansion..."
+	echo "Compiling Key_Expansion..."
 	$(COMPILER) $(COMPILER_FLAGS) $(EXTRA_COMPILER_FLAGS) $(INCLUDES) $(LIBSOURCES)
 	$(ARCHIVER) -r ${RELEASEDIR}/${LIB} ${OUTS}
 	make clean

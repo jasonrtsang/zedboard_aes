@@ -1,11 +1,11 @@
 
 `timescale 1ns / 1ps
-`include "KeyExpansion_v1_0_tb_include.svh"
+`include "Key_Expansion_v0_5_tb_include.svh"
 
 import axi_vip_pkg::*;
-import KeyExpansion_v1_0_bfm_1_master_0_0_pkg::*;
+import Key_Expansion_v0_5_bfm_1_master_0_0_pkg::*;
 
-module KeyExpansion_v1_0_tb();
+module Key_Expansion_v0_5_tb();
 
 
 xil_axi_uint                            error_cnt = 0;
@@ -104,7 +104,7 @@ axi_ready_gen                           awready_gen2;
 axi_ready_gen                           wready_gen2;  
 axi_ready_gen                           arready_gen2;  
 xil_axi_payload_byte                    data_mem[xil_axi_ulong];  
-KeyExpansion_v1_0_bfm_1_master_0_0_mst_t          mst_agent_0;
+Key_Expansion_v0_5_bfm_1_master_0_0_mst_t          mst_agent_0;
 
   `BD_WRAPPER DUT(
       .ARESETN(reset), 

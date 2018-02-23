@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity KeyExpansion_v1_0 is
+entity Key_Expansion_v0_5 is
 	generic (
 		-- Users to add parameters here
 
@@ -12,7 +12,7 @@ entity KeyExpansion_v1_0 is
 
 		-- Parameters of Axi Slave Bus Interface S00_AXI
 		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S00_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S00_AXI_ADDR_WIDTH	: integer	:= 8
 	);
 	port (
 		-- Users to add ports here
@@ -44,15 +44,15 @@ entity KeyExpansion_v1_0 is
 		s00_axi_rvalid	: out std_logic;
 		s00_axi_rready	: in std_logic
 	);
-end KeyExpansion_v1_0;
+end Key_Expansion_v0_5;
 
-architecture arch_imp of KeyExpansion_v1_0 is
+architecture arch_imp of Key_Expansion_v0_5 is
 
 	-- component declaration
-	component KeyExpansion_v1_0_S00_AXI is
+	component Key_Expansion_v0_5_S00_AXI is
 		generic (
 		C_S_AXI_DATA_WIDTH	: integer	:= 32;
-		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+		C_S_AXI_ADDR_WIDTH	: integer	:= 8
 		);
 		port (
 		S_AXI_ACLK	: in std_logic;
@@ -77,12 +77,12 @@ architecture arch_imp of KeyExpansion_v1_0 is
 		S_AXI_RVALID	: out std_logic;
 		S_AXI_RREADY	: in std_logic
 		);
-	end component KeyExpansion_v1_0_S00_AXI;
+	end component Key_Expansion_v0_5_S00_AXI;
 
 begin
 
 -- Instantiation of Axi Bus Interface S00_AXI
-KeyExpansion_v1_0_S00_AXI_inst : KeyExpansion_v1_0_S00_AXI
+Key_Expansion_v0_5_S00_AXI_inst : Key_Expansion_v0_5_S00_AXI
 	generic map (
 		C_S_AXI_DATA_WIDTH	=> C_S00_AXI_DATA_WIDTH,
 		C_S_AXI_ADDR_WIDTH	=> C_S00_AXI_ADDR_WIDTH
