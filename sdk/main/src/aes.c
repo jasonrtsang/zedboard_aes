@@ -46,6 +46,8 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
 /* Includes:                                                                 */
 /*****************************************************************************/
 #include "aes.h"
+#include "xparameters.h"
+
 
 /*****************************************************************************/
 /* Defines:                                                                  */
@@ -69,6 +71,8 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
 /*****************************************************************************/
 // state - array holding the intermediate results during decryption.
 typedef uint8_t state_t[4][4];
+
+static void pstate(const uint8_t round, const char process[], state_t* state);
 
 
 // The lookup-tables are marked const so they can be placed in read-only storage instead of RAM
@@ -394,8 +398,50 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 {
   uint8_t round = 0;
 
+
+  /* ADD ROUND IP BLOCK INPUT BOTCH */
+
+	uint32_t *baseaddr_p = (uint32_t *)XPAR_ADD_ROUND_KEY_0_S00_AXI_BASEADDR;
+
+	uint32_t state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(baseaddr_p+0) = state_0;
+	uint32_t state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
+	*(baseaddr_p+1) = state_1;
+	uint32_t state_2 = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
+	*(baseaddr_p+2) = state_2;
+	uint32_t state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
+	*(baseaddr_p+3) = state_3;
+
+	uint32_t key_0 = RoundKey[3] | RoundKey[2] << 8 | RoundKey[1] << 16 | RoundKey[0] << 24;
+	*(baseaddr_p+4) = key_0;
+	uint32_t key_1 = RoundKey[7] | RoundKey[6] << 8 | RoundKey[5] << 16 | RoundKey[4] << 24;
+	*(baseaddr_p+5) = key_1;
+	uint32_t key_2 = RoundKey[11] | RoundKey[10] << 8 | RoundKey[9] << 16 | RoundKey[8] << 24;
+	*(baseaddr_p+6) = key_2;
+	uint32_t key_3 = RoundKey[15] | RoundKey[14] << 8 | RoundKey[13] << 16 | RoundKey[12] << 24;
+	*(baseaddr_p+7) = key_3;
+
+	state_t* state_block = 0;
+	int i, j, k;
+
+	k = 8;
+	for (i = 0; i < 4; i++) {
+		j = 0;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 24) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 16) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 8) & 0xFF;
+		(*state_block)[i][j] = *(baseaddr_p+k) & 0xFF;
+		k++;
+	}
+
+	pstate(Nr, "First: AddRoundKey (hw)", state_block);
+
+	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(0, state, RoundKey);
+
+  pstate(Nr, "First: AddRoundKey (sw)", state);
 
   // There will be Nr rounds.
   // The first Nr-1 rounds are identical.

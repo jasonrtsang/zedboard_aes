@@ -27,8 +27,6 @@
 #include "xsdps.h"
 
 #include "xbasic_types.h"
-#include "xparameters.h"
-
 
 /************************** Defines Prototypes *******************************/
 
