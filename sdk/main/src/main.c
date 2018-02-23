@@ -301,15 +301,16 @@ int main(void)
 							ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
 						}
 
+						printf("\nctx_block.RoundKey\n");
 						for (i = 0; i < 176; i++) {
 							printf("%.2x ", ctx_block.RoundKey[i]);
 						}
-						printf("ctx_block.RoundKey(0)\r\n\n");
 
+						printf("\n\nctx.RoundKey\n");
 						for (i = 0; i < 176; i++) {
 							printf("%.2x ", ctx.RoundKey[i]);
 						}
-						printf("ctx.RoundKey(0)\r\n");
+						printf("\n");
 
 						/* KEY EXPANSION IP BLOCK INPUT BOTCH END*/
 

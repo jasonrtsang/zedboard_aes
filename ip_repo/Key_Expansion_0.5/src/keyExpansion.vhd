@@ -2,16 +2,16 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.aes_lib.all;
 
-entity keyExpansion_128 is
+entity keyExpansion is
 	generic (mode : AES_MODE := DECRYPTION);
 	
 	port (k : in  WORD_ARRAY  (0 to  3);
 			o : out STATE_ARRAY (0 to 10)
 			);
 			
-end keyExpansion_128;
+end keyExpansion;
 
-architecture Behavioral of keyExpansion_128 is
+architecture Behavioral of keyExpansion is
 	signal tmp : WORD_ARRAY (0 to 43);
 
 begin

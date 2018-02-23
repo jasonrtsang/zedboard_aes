@@ -169,12 +169,12 @@ architecture arch_imp of Key_Expansion_v0_5_S00_AXI is
 
 	-- Add user component here
 
-	component keyExpansion_128   
+	component keyExpansion   
 	   generic (mode : AES_MODE := DECRYPTION);     
         port (
             k : in  WORD_ARRAY  (0 to  3);
             o : out STATE_ARRAY (0 to 10));
-    end component keyExpansion_128;
+    end component keyExpansion;
 
 	type ROUND_TYPE is (round0, round1, round2, round3, round4, round5, round6, round7, 
 							  round8, round9, round10, round11, round12, round13, round14);
@@ -1020,7 +1020,7 @@ begin
         (slv_reg3(31 downto 24), slv_reg3(23 downto 16), slv_reg3(15 downto 8), slv_reg3(7 downto 0))
     );
 	
-	keyExpansion_128P : keyExpansion_128 
+	keyExpansionP : keyExpansion
 	generic map (
 	    mode => mode)
 	port map(
