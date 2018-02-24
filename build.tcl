@@ -49,7 +49,7 @@ if { [info exists ::user_project_name] } {
 }
 
 variable script_file
-set script_file "build_2.tcl"
+set script_file "build.tcl"
 
 # Help information for this script
 proc help {} {
@@ -95,8 +95,6 @@ if { $::argc > 0 } {
     }
   }
 }
-
-set orig_proj_dir "[file normalize "$origin_dir/"]"
 
 # Create project
 create_project ${project_name} ${origin_dir} -part xc7z020clg484-1

@@ -33,7 +33,7 @@
 #*****************************************************************************************
 
 # Set the reference directory for source file relative paths (by default the value is script directory path)
-set origin_dir "."
+set origin_dir [file dirname [info script]]
 
 # Use origin directory path location variable, if specified in the tcl shell
 if { [info exists ::origin_dir_loc] } {
@@ -96,11 +96,9 @@ if { $::argc > 0 } {
   }
 }
 
-# Set the directory path for the original project from where this script was exported
-set orig_proj_dir "[file normalize "$origin_dir/"]"
 
 # Create project
-create_project ${project_name} ./${project_name} -part xc7z020clg484-1
+create_project ${project_name} ${origin_dir} -part xc7z020clg484-1
 
 # Set the directory path for the new project
 set proj_dir [get_property directory [current_project]]
@@ -135,7 +133,7 @@ update_ip_catalog -rebuild
 set obj [get_filesets sources_1]
 # Import local files from the original project
 set files [list \
- "[file normalize "$origin_dir/zedboard_aes.srcs/sources_1/imports/hdl/system_wrapper.vhd"]"\
+ "[file normalize "$origin_dir/src/sources_1/bd/system/hdl/system_wrapper.vhd"]"\
 ]
 set imported_files [import_files -fileset sources_1 $files]
 
@@ -161,7 +159,7 @@ if {[string equal [get_filesets -quiet constrs_1] ""]} {
 set obj [get_filesets constrs_1]
 
 # Add/Import constrs file and set constrs file properties
-set file "[file normalize "$origin_dir/zedboard_aes.srcs/constrs_1/imports/new/system.xdc"]"
+set file "[file normalize "$origin_dir/src/constrs_1/new/system.xdc"]"
 set file_imported [import_files -fileset constrs_1 $file]
 set file "new/system.xdc"
 set file_obj [get_files -of_objects [get_filesets constrs_1] [list "*$file"]]
