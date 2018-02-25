@@ -427,7 +427,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	*(baseaddr_p+7) = key_word;
 
 
-	state_t* state_block = 0;
+	state_t* state_block = {0};
 	int i, j, k;
 
 	k = 8;
