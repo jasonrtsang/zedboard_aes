@@ -3,6 +3,8 @@
 Project is currently **in progress**, below is the complicated overview of the source control for this ZedBoard project...
 Specific implementation details to come...
 
+**ONLY compatible with Vivado 2017.3**
+
 #### Vivado File Structure
 * `./ip_repo` (if exists, holds custom IP blocks)
 * `./src` (files specified within build.tcl)
