@@ -100,7 +100,7 @@ int main(void)
 
     /* Initialize platform */
     init_platform();
-    if(XGpio_Initialize(&GpioSW0_Ptr, XPAR_AXI_GPIO_0_DEVICE_ID) != XST_SUCCESS) { // AXI GPIO
+    if(XGpio_Initialize(&GpioSW0_Ptr, XPAR_SW0_AXI_GPIO_DEVICE_ID) != XST_SUCCESS) { // AXI GPIO
         printf("UH OH: GPIO SW0 initialization failed\r\n");
     }
     XGpio_SetDataDirection(&GpioSW0_Ptr, 1, 1); // Set GPIO direction
