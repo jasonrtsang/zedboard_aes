@@ -5,6 +5,7 @@ package aes_package is
     constant byte_size : positive := 8;
     constant word_size : positive := 4;
     constant state_size : positive := 4;
+    constant num_rounds : positive := 11;
     
     -- BYTE:
     --  (7 downto 0)
@@ -26,9 +27,10 @@ package aes_package is
     
     type AES_MODE is (ENCRYPTION, DECRYPTION);  
 
+    -- Round constant exponentiation of 2
     -- Only rcon[10] needed for 128-bit AES
     -- Start from rcon[1] as x"8d" at 0 is not used in algorithm
     -- https://en.wikipedia.org/wiki/Rijndael_key_schedule
-    constant RCON : BYTE_ARRAY (1 to 10) := (x"01", x"02", x"04", x"08", x"10", 
+    constant RCON : BYTE_ARRAY (1 to num_rounds-1) := (x"01", x"02", x"04", x"08", x"10", 
                                              x"20", x"40", x"80", x"1B", x"36");
 end package aes_package;
