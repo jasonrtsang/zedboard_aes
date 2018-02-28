@@ -402,6 +402,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   /* ADD ROUND IP BLOCK INPUT BOTCH */
 
 	uint32_t *baseaddr_p = (uint32_t *)XPAR_ADD_ROUND_KEY_0_S00_AXI_BASEADDR;
+	uint32_t *subbyte_baseaddr_p = (uint32_t *)0x43C20000; // TEMP, unsure why the driver is not working
 
 	uint32_t state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
 	*(baseaddr_p+0) = state_0;
@@ -454,7 +455,23 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   // These Nr-1 rounds are executed in the loop below.
   for (round = 1; round < Nr; ++round)
   {
+	// Now we'll add the hardware block in here and compare
+	*(subbyte_baseaddr_p+0) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(subbyte_baseaddr_p+1) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(subbyte_baseaddr_p+2) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(subbyte_baseaddr_p+3) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	// Run the software
     SubBytes(state);
+    // Read the hardware
+    state_t new_state;
+    new_state[0] = *(subbyte_baseaddr_p+4);
+    new_state[1] = *(subbyte_baseaddr_p+5);
+    new_state[2] = *(subbyte_baseaddr_p+6);
+    new_state[3] = *(subbyte_baseaddr_p+7);
+
+    pstate(round, "Loop: SubBytes (SW)", state);
+    pstate(round, "Loop: SubBytes (SW)", *new_state);
+
     ShiftRows(state);
     MixColumns(state);
 

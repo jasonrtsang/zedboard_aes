@@ -125,6 +125,20 @@ architecture arch_imp of Sub_Bytes_v0_5_S00_AXI is
 	signal byte_index	: integer;
 	signal aw_en	: std_logic;
 
+	-- Add user component here
+
+	component subBytes is
+		port (
+			i : in STATE;
+			o : out STATE
+			);
+	end component subBytes;
+
+	signal state_in : STATE;
+	signal state_out : STATE;
+
+	-- User component ends
+
 begin
 	-- I/O Connections assignments
 
@@ -427,13 +441,13 @@ begin
 	      when b"0011" =>
 	        reg_data_out <= slv_reg3; --input
 	      when b"0100" =>
-	        reg_data_out <= slv_reg4; --output - add output logic here
+	        reg_data_out <= state_out(0)(0) & state_out(0)(1) & state_out(0)(2) & state_out(0)(3); --output - add output logic here
 	      when b"0101" =>
-	        reg_data_out <= slv_reg5; --output - add output logic here
+	        reg_data_out <= state_out(1)(0) & state_out(1)(1) & state_out(1)(2) & state_out(1)(3); --output - add output logic here
 	      when b"0110" =>
-	        reg_data_out <= slv_reg6; --output - add output logic here
+	        reg_data_out <= state_out(2)(0) & state_out(2)(1) & state_out(2)(2) & state_out(2)(3); --output - add output logic here
 	      when b"0111" =>
-	        reg_data_out <= slv_reg7; --output - add output logic here
+	        reg_data_out <= state_out(3)(0) & state_out(3)(1) & state_out(3)(2) & state_out(3)(3); --output - add output logic here
 	      when b"1000" =>
 	        reg_data_out <= slv_reg8; -- Extra ununsed
 	      when b"1001" =>
@@ -464,7 +478,10 @@ begin
 
 	-- Add user logic here
 	
-	
+	subBytesP : subBytes
+	port map(
+		i => state_in,
+		o => state_out);
 
 	-- User logic ends
 
