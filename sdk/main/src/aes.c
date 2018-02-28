@@ -47,7 +47,9 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
 /*****************************************************************************/
 #include "aes.h"
 #include "xparameters.h"
-
+#ifdef MILESTONE2
+#include <stdlib.h>
+#endif // MILESTONE2
 
 /*****************************************************************************/
 /* Defines:                                                                  */
@@ -398,9 +400,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 {
   uint8_t round = 0;
 
-
-  /* ADD ROUND IP BLOCK INPUT BOTCH */
-
+#ifdef MILESTONE2
 	uint32_t *baseaddr_p = (uint32_t *)XPAR_ADD_ROUND_KEY_0_S00_AXI_BASEADDR;
 
 	uint32_t state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
@@ -426,8 +426,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	r+=4;
 	*(baseaddr_p+7) = key_word;
 
-
-	state_t* state_block = {0};
+	state_t* state_block = (state_t*) malloc(sizeof(state_t));
 	int i, j, k;
 
 	k = 8;
@@ -441,13 +440,23 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	}
 
 	pstate(0, "First: AddRoundKey (HW)", state_block);
-
-	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+#endif // MILESTONE2
 
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(0, state, RoundKey);
 
-  pstate(0, "First: AddRoundKey (SW)", state);
+#ifdef MILESTONE2
+	pstate(0, "First: AddRoundKey (SW)", state);
+	/* Diff SW and HW to validate */
+	unsigned char m, n;
+	for (m = 0; m < 4; ++m) {
+		for (n = 0; n < 4; ++n) {
+			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
+				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
+			}
+		}
+	}
+#endif // MILESTONE2
 
   // There will be Nr rounds.
   // The first Nr-1 rounds are identical.
@@ -458,9 +467,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
     ShiftRows(state);
     MixColumns(state);
 
-
-    /* ADD ROUND IP BLOCK INPUT BOTCH */
-
+#ifdef MILESTONE2
 	state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
 	*(baseaddr_p+0) = state_0;
 	state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
@@ -494,11 +501,21 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	}
 
 	pstate(round, "Loop: AddRoundKey (HW)", state_block);
-
-	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+#endif // MILESTONE2
 
     AddRoundKey(round, state, RoundKey);
+
+#ifdef MILESTONE2
     pstate(round, "Loop: AddRoundKey (SW)", state);
+	/* Diff SW and HW to validate */
+	for (m = 0; m < 4; ++m) {
+		for (n = 0; n < 4; ++n) {
+			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
+				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
+			}
+		}
+	}
+#endif // MILESTONE2
   }
 
   // The last round is given below.
@@ -506,46 +523,57 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   SubBytes(state);
   ShiftRows(state);
 
-  /* ADD ROUND IP BLOCK INPUT BOTCH */
-
+#ifdef MILESTONE2
   	state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
-  	*(baseaddr_p+0) = state_0;
-  	state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
-  	*(baseaddr_p+1) = state_1;
-  	state_2 = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
-  	*(baseaddr_p+2) = state_2;
-  	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
-  	*(baseaddr_p+3) = state_3;
+	*(baseaddr_p+0) = state_0;
+	state_1 = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
+	*(baseaddr_p+1) = state_1;
+	state_2 = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
+	*(baseaddr_p+2) = state_2;
+	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
+	*(baseaddr_p+3) = state_3;
 
-  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
-  	r+=4;
-  	*(baseaddr_p+4) = key_word;
-  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
-  	r+=4;
-  	*(baseaddr_p+5) = key_word;
-  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
-  	r+=4;
-  	*(baseaddr_p+6) = key_word;
-  	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
-  	r+=4;
-  	*(baseaddr_p+7) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+4) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+5) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+6) = key_word;
+	key_word = RoundKey[r] << 24 | RoundKey[r+1] << 16 | RoundKey[r+2] << 8 | RoundKey[r+3];
+	r+=4;
+	*(baseaddr_p+7) = key_word;
 
-  	k = 8;
-  	for (i = 0; i < 4; i++) {
-  		j = 0;
-  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 24) & 0xFF;
-  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 16) & 0xFF;
-  		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 8) & 0xFF;
-  		(*state_block)[i][j] = *(baseaddr_p+k) & 0xFF;
-  		k++;
-  	}
+	k = 8;
+	for (i = 0; i < 4; i++) {
+		j = 0;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 24) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 16) & 0xFF;
+		(*state_block)[i][j++] = (*(baseaddr_p+k) >> 8) & 0xFF;
+		(*state_block)[i][j] = *(baseaddr_p+k) & 0xFF;
+		k++;
+	}
 
-  	pstate(round, "Loop: AddRoundKey (HW)", state_block);
-
-  	/* ADD ROUND IP BLOCK INPUT BOTCH END*/
+	pstate(round, "Loop: AddRoundKey (HW)", state_block);
+#endif // MILESTONE2
 
   AddRoundKey(Nr, state, RoundKey);
-  pstate(Nr, "Last: AddRoundKey (SW)", state);
+
+#ifdef MILESTONE2
+  	pstate(Nr, "Last: AddRoundKey (SW)", state);
+	/* Diff SW and HW to validate */
+	for (m = 0; m < 4; ++m) {
+		for (n = 0; n < 4; ++n) {
+			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
+				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
+			}
+		}
+	}
+
+	free(state_block);
+#endif // MILESTONE2
 }
 
 static void InvCipher(state_t* state,uint8_t* RoundKey)
