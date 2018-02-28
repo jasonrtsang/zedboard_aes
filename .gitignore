@@ -4,6 +4,7 @@
 # anywhere in the repo
 .Xil/
 Debug/
+Packages/
 zedboard_aes.*
 
 # File patterns that should be ignored (journal, log, dump files that 

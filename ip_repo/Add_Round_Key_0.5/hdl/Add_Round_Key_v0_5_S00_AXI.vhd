@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.aes_lib.all;
+use work.aes_package.all;
 
 entity Add_Round_Key_v0_5_S00_AXI is
 	generic (
@@ -133,10 +133,9 @@ architecture arch_imp of Add_Round_Key_v0_5_S00_AXI is
 	-- Add user component here
 
 	component addRoundKey   
-        port (i1 : in  STATE;
-              i2 : in  STATE;
-              o  : out STATE
-        );
+		port (inState  : in  STATE;
+			  inKey    : in  STATE;
+			  outState : out STATE);
     end component addRoundKey;
 	
 	signal slv_reg_state : STATE;
@@ -265,6 +264,7 @@ begin
 	                -- Respective byte enables are asserted as per write strobes                   
 	                -- slave registor 0
 	                slv_reg0(byte_index*8+7 downto byte_index*8) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
+					-- slv_reg_state(0)(C_S_AXI_DATA_WIDTH/8-byte_index-1) <= S_AXI_WDATA(byte_index*8+7 downto byte_index*8);
 	              end if;
 	            end loop;
 	          when b"0001" =>
@@ -559,9 +559,9 @@ begin
     
     addRoundKeyP : addRoundKey 
     port map(
-        i1 => slv_reg_state,
-        i2 => slv_reg_key,
-        o => output_state);
+        inState => slv_reg_state,
+        inKey => slv_reg_key,
+        outState => output_state);
 
 	-- User logic ends
 

@@ -1,28 +1,19 @@
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use work.aes_lib.STATE;
+library ieee;
+use ieee.std_logic_1164.all;
+use work.aes_package.all;
 
 entity addRoundKey is
-	port (i1 : in  STATE;
-			i2 : in  STATE;
-			o  : out STATE
-			);
-			
+    port (inState  : in  STATE;
+          inKey    : in  STATE;
+          outState : out STATE);
 end addRoundKey;
 
-architecture Behavioral of addRoundKey is
-
+-- Adds the round key to state by an XOR function
+architecture behavioral of addRoundKey is
 begin
-	loopWords:
-	for i in 0 to 3 generate
-		
-		loopBytes:
-		for j in 0 to 3 generate
-			o (i)(j) <= i1 (i)(j) xor i2 (i)(j);
-				
-		end generate;
-
-	end generate;
-
-end Behavioral;
-
+    loopWords: for i in 0 to (word_size-1) generate
+        loopBytes: for j in 0 to (word_size-1) generate
+            outState(i)(j) <= inState(i)(j) xor inKey(i)(j);
+        end generate loopBytes;
+    end generate loopWords;
+end behavioral;
