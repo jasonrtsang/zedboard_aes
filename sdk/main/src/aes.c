@@ -402,7 +402,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   /* ADD ROUND IP BLOCK INPUT BOTCH */
 
 	uint32_t *baseaddr_p = (uint32_t *)XPAR_ADD_ROUND_KEY_0_S00_AXI_BASEADDR;
-	uint32_t *subbyte_baseaddr_p = (uint32_t *)0x43C20000; // TEMP, unsure why the driver is not working
+	uint32_t *subbyte_baseaddr_p = (uint32_t *)XPAR_SUB_BYTES_0_S00_AXI_BASEADDR;
 
 	uint32_t state_0 = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
 	*(baseaddr_p+0) = state_0;
@@ -457,20 +457,40 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   {
 	// Now we'll add the hardware block in here and compare
 	*(subbyte_baseaddr_p+0) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
-	*(subbyte_baseaddr_p+1) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
-	*(subbyte_baseaddr_p+2) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
-	*(subbyte_baseaddr_p+3) = (*state)[0][0] << 24 | (*state)[0][1] << 16 | (*state)[0][2] << 8 | (*state)[0][3];
+	*(subbyte_baseaddr_p+1) = (*state)[1][0] << 24 | (*state)[1][1] << 16 | (*state)[1][2] << 8 | (*state)[1][3];
+	*(subbyte_baseaddr_p+2) = (*state)[2][0] << 24 | (*state)[2][1] << 16 | (*state)[2][2] << 8 | (*state)[2][3];
+	*(subbyte_baseaddr_p+3) = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
 	// Run the software
     SubBytes(state);
     // Read the hardware
-    state_t new_state;
-    new_state[0] = *(subbyte_baseaddr_p+4);
-    new_state[1] = *(subbyte_baseaddr_p+5);
-    new_state[2] = *(subbyte_baseaddr_p+6);
-    new_state[3] = *(subbyte_baseaddr_p+7);
+    state_t new_state = {{0}};
+    state_t sub_bytes_input = {{0}};
+
+    k = 0;
+    for (i = 0; i < 4; i++) {
+        		j = 0;
+        		sub_bytes_input[i][j++] = (*(subbyte_baseaddr_p+k) >> 24) & 0xFF;
+        		sub_bytes_input[i][j++] = (*(subbyte_baseaddr_p+k) >> 16) & 0xFF;
+        		sub_bytes_input[i][j++] = (*(subbyte_baseaddr_p+k) >> 8) & 0xFF;
+        		sub_bytes_input[i][j] = *(subbyte_baseaddr_p+k) & 0xFF;
+        		k++;
+        }
+
+    pstate(round, "Loop: SubBytes Input (HW)", &sub_bytes_input);
+
+    k = 4;
+    for (i = 0; i < 4; i++) {
+    		j = 0;
+    		new_state[i][j++] = (*(subbyte_baseaddr_p+k) >> 24) & 0xFF;
+    		new_state[i][j++] = (*(subbyte_baseaddr_p+k) >> 16) & 0xFF;
+    		new_state[i][j++] = (*(subbyte_baseaddr_p+k) >> 8) & 0xFF;
+    		new_state[i][j] = *(subbyte_baseaddr_p+k) & 0xFF;
+    		k++;
+    }
+
 
     pstate(round, "Loop: SubBytes (SW)", state);
-    pstate(round, "Loop: SubBytes (SW)", *new_state);
+    pstate(round, "Loop: SubBytes (HW)", &new_state);
 
     ShiftRows(state);
     MixColumns(state);

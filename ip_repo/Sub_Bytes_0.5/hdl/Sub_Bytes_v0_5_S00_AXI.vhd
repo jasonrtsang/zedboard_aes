@@ -478,6 +478,12 @@ begin
 
 	-- Add user logic here
 	
+	--Need to set all of the slv_regs to state_in
+	state_in(0) <= (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0));
+	state_in(1) <= (slv_reg1(31 downto 24), slv_reg1(23 downto 16), slv_reg1(15 downto 8), slv_reg1(7 downto 0));
+	state_in(2) <= (slv_reg2(31 downto 24), slv_reg2(23 downto 16), slv_reg2(15 downto 8), slv_reg2(7 downto 0));
+	state_in(3) <= (slv_reg3(31 downto 24), slv_reg3(23 downto 16), slv_reg3(15 downto 8), slv_reg3(7 downto 0));
+	
 	subBytesP : subBytes
 	port map(
 		i => state_in,
