@@ -448,13 +448,8 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 #ifdef MILESTONE2
 	pstate(0, "First: AddRoundKey (SW)", state);
 	/* Diff SW and HW to validate */
-	unsigned char m, n;
-	for (m = 0; m < 4; ++m) {
-		for (n = 0; n < 4; ++n) {
-			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
-				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
-			}
-		}
+	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
+		printf("UH OH: SW First AddRoundKey does not match that of HW\r\n");
 	}
 #endif // MILESTONE2
 
@@ -508,12 +503,8 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 #ifdef MILESTONE2
     pstate(round, "Loop: AddRoundKey (SW)", state);
 	/* Diff SW and HW to validate */
-	for (m = 0; m < 4; ++m) {
-		for (n = 0; n < 4; ++n) {
-			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
-				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
-			}
-		}
+	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
+		printf("UH OH: SW Loop AddRoundKey does not match that of HW\r\n");
 	}
 #endif // MILESTONE2
   }
@@ -564,12 +555,8 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 #ifdef MILESTONE2
   	pstate(Nr, "Last: AddRoundKey (SW)", state);
 	/* Diff SW and HW to validate */
-	for (m = 0; m < 4; ++m) {
-		for (n = 0; n < 4; ++n) {
-			if (memcmp((void*)(*state)[m][n], (void*)(*state_block)[m][n], sizeof((*state[m][n]))) != 0) {
-				printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
-			}
-		}
+	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
+		printf("UH OH: SW Last AddRoundKey does not match that of HW\r\n");
 	}
 
 	free(state_block);
