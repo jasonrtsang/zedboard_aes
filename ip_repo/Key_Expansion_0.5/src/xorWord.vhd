@@ -1,19 +1,15 @@
-library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use work.aes_lib.WORD;
+library ieee;
+use ieee.std_logic_1164.all;
+use work.aes_package.all;
 
 entity xorWord is
-	port (i1 : in  WORD;
-			i2 : in  WORD;
-			o  : out WORD
-			);
+    port (inWord1 : in  WORD;
+          inWord2 : in  WORD;
+          outWord : out WORD);
 end xorWord;
 
-architecture Behavioral of xorWord is
-
+-- XOR word (4-8 bit per in)
+architecture behavioral of xorWord is
 begin
-	o <= (i1 (0) xor i2 (0), i1 (1) xor i2 (1),
-			i1 (2) xor i2 (2), i1 (3) xor i2 (3));
-
-end Behavioral;
-
+    outWord <= (inWord1(0) xor inWord2(0), inWord1(1) xor inWord2(1), inWord1(2) xor inWord2(2), inWord1(3) xor inWord2(3));
+end behavioral;

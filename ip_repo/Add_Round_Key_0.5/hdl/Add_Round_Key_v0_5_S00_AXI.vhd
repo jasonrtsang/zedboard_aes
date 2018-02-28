@@ -544,12 +544,14 @@ begin
 
 	-- Add user logic here
 	
+	-- Input state
 	slv_reg_state <= (
         (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
         (slv_reg1(31 downto 24), slv_reg1(23 downto 16), slv_reg1(15 downto 8), slv_reg1(7 downto 0)),
         (slv_reg2(31 downto 24), slv_reg2(23 downto 16), slv_reg2(15 downto 8), slv_reg2(7 downto 0)),
         (slv_reg3(31 downto 24), slv_reg3(23 downto 16), slv_reg3(15 downto 8), slv_reg3(7 downto 0))
     );
+	-- Input round key for state
     slv_reg_key <= (
         (slv_reg4(31 downto 24), slv_reg4(23 downto 16), slv_reg4(15 downto 8), slv_reg4(7 downto 0)),
         (slv_reg5(31 downto 24), slv_reg5(23 downto 16), slv_reg5(15 downto 8), slv_reg5(7 downto 0)),

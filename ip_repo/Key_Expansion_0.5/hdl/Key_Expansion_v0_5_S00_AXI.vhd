@@ -1,13 +1,13 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.aes_lib.all;
+use work.aes_package.all;
 
 entity Key_Expansion_v0_5_S00_AXI is
 	generic (
 		-- Users to add parameters here
 		
-		mode    : AES_MODE := ENCRYPTION;
+		mode : AES_MODE := ENCRYPTION;
 
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
@@ -170,27 +170,13 @@ architecture arch_imp of Key_Expansion_v0_5_S00_AXI is
 	-- Add user component here
 
 	component keyExpansion   
-	   generic (mode : AES_MODE := DECRYPTION);     
-        port (
-            k : in  WORD_ARRAY  (0 to  3);
-            o : out STATE_ARRAY (0 to 10));
+		generic (mode : AES_MODE := DECRYPTION);     
+		port (inKey       : in  WORD_ARRAY  (0 to word_size-1);
+			  outRoundKey : out STATE_ARRAY (0 to num_rounds-1));
     end component keyExpansion;
 
-	type ROUND_TYPE is (round0, round1, round2, round3, round4, round5, round6, round7, 
-							  round8, round9, round10, round11, round12, round13, round14);
-							  
-	signal round : ROUND_TYPE;	
-	signal key_schedule : STATE_ARRAY (0 to 10);
-	signal curr_key : STATE;
-	signal curr_state : STATE;
-	signal next_state : STATE;
-	signal first_state : STATE;
-	signal slv_reg0_word_array : WORD_ARRAY (0 to 3);
-	
-	signal slv_reg_state : STATE;
-	signal slv_reg_word : WORD;
-	signal slv_reg_byte : BYTE;
-	
+	signal round_key : STATE_ARRAY (0 to num_rounds-1);
+	signal slv_reg0_word_array : WORD_ARRAY (0 to 3); -- for key
 	
 	-- User component ends
 	
@@ -896,93 +882,93 @@ begin
 	      when b"000011" =>
 	        reg_data_out <= slv_reg3;
 	      when b"000100" =>
-	        reg_data_out <= key_schedule(0)(0)(0) & key_schedule(0)(0)(1) & key_schedule(0)(0)(2) & key_schedule(0)(0)(3);
+	        reg_data_out <= round_key(0)(0)(0) & round_key(0)(0)(1) & round_key(0)(0)(2) & round_key(0)(0)(3);
 	      when b"000101" =>
-	        reg_data_out <= key_schedule(0)(1)(0) & key_schedule(0)(1)(1) & key_schedule(0)(1)(2) & key_schedule(0)(1)(3);
+	        reg_data_out <= round_key(0)(1)(0) & round_key(0)(1)(1) & round_key(0)(1)(2) & round_key(0)(1)(3);
 	      when b"000110" =>
-	        reg_data_out <= key_schedule(0)(2)(0) & key_schedule(0)(2)(1) & key_schedule(0)(2)(2) & key_schedule(0)(2)(3);
+	        reg_data_out <= round_key(0)(2)(0) & round_key(0)(2)(1) & round_key(0)(2)(2) & round_key(0)(2)(3);
 	      when b"000111" =>
-	        reg_data_out <= key_schedule(0)(3)(0) & key_schedule(0)(3)(1) & key_schedule(0)(3)(2) & key_schedule(0)(3)(3);
+	        reg_data_out <= round_key(0)(3)(0) & round_key(0)(3)(1) & round_key(0)(3)(2) & round_key(0)(3)(3);
 	      when b"001000" =>
-	        reg_data_out <= key_schedule(1)(0)(0) & key_schedule(1)(0)(1) & key_schedule(1)(0)(2) & key_schedule(1)(0)(3);
+	        reg_data_out <= round_key(1)(0)(0) & round_key(1)(0)(1) & round_key(1)(0)(2) & round_key(1)(0)(3);
 	      when b"001001" =>
-	        reg_data_out <= key_schedule(1)(1)(0) & key_schedule(1)(1)(1) & key_schedule(1)(1)(2) & key_schedule(1)(1)(3);
+	        reg_data_out <= round_key(1)(1)(0) & round_key(1)(1)(1) & round_key(1)(1)(2) & round_key(1)(1)(3);
 	      when b"001010" =>
-	        reg_data_out <= key_schedule(1)(2)(0) & key_schedule(1)(2)(1) & key_schedule(1)(2)(2) & key_schedule(1)(2)(3);
+	        reg_data_out <= round_key(1)(2)(0) & round_key(1)(2)(1) & round_key(1)(2)(2) & round_key(1)(2)(3);
 	      when b"001011" =>
-	        reg_data_out <= key_schedule(1)(3)(0) & key_schedule(1)(3)(1) & key_schedule(1)(3)(2) & key_schedule(1)(3)(3);
+	        reg_data_out <= round_key(1)(3)(0) & round_key(1)(3)(1) & round_key(1)(3)(2) & round_key(1)(3)(3);
 	      when b"001100" =>
-	        reg_data_out <= key_schedule(2)(0)(0) & key_schedule(2)(0)(1) & key_schedule(2)(0)(2) & key_schedule(2)(0)(3);
+	        reg_data_out <= round_key(2)(0)(0) & round_key(2)(0)(1) & round_key(2)(0)(2) & round_key(2)(0)(3);
 	      when b"001101" =>
-	        reg_data_out <= key_schedule(2)(1)(0) & key_schedule(2)(1)(1) & key_schedule(2)(1)(2) & key_schedule(2)(1)(3);
+	        reg_data_out <= round_key(2)(1)(0) & round_key(2)(1)(1) & round_key(2)(1)(2) & round_key(2)(1)(3);
 	      when b"001110" =>
-	        reg_data_out <= key_schedule(2)(2)(0) & key_schedule(2)(2)(1) & key_schedule(2)(2)(2) & key_schedule(2)(2)(3);
+	        reg_data_out <= round_key(2)(2)(0) & round_key(2)(2)(1) & round_key(2)(2)(2) & round_key(2)(2)(3);
 	      when b"001111" =>
-	        reg_data_out <= key_schedule(2)(3)(0) & key_schedule(2)(3)(1) & key_schedule(2)(3)(2) & key_schedule(2)(3)(3);
+	        reg_data_out <= round_key(2)(3)(0) & round_key(2)(3)(1) & round_key(2)(3)(2) & round_key(2)(3)(3);
 	      when b"010000" =>
-	        reg_data_out <= key_schedule(3)(0)(0) & key_schedule(3)(0)(1) & key_schedule(3)(0)(2) & key_schedule(3)(0)(3);
+	        reg_data_out <= round_key(3)(0)(0) & round_key(3)(0)(1) & round_key(3)(0)(2) & round_key(3)(0)(3);
 	      when b"010001" =>
-	        reg_data_out <= key_schedule(3)(1)(0) & key_schedule(3)(1)(1) & key_schedule(3)(1)(2) & key_schedule(3)(1)(3);
+	        reg_data_out <= round_key(3)(1)(0) & round_key(3)(1)(1) & round_key(3)(1)(2) & round_key(3)(1)(3);
 	      when b"010010" =>
-	        reg_data_out <= key_schedule(3)(2)(0) & key_schedule(3)(2)(1) & key_schedule(3)(2)(2) & key_schedule(3)(2)(3);
+	        reg_data_out <= round_key(3)(2)(0) & round_key(3)(2)(1) & round_key(3)(2)(2) & round_key(3)(2)(3);
 	      when b"010011" =>
-	        reg_data_out <= key_schedule(3)(3)(0) & key_schedule(3)(3)(1) & key_schedule(3)(3)(2) & key_schedule(3)(3)(3);
+	        reg_data_out <= round_key(3)(3)(0) & round_key(3)(3)(1) & round_key(3)(3)(2) & round_key(3)(3)(3);
 	      when b"010100" =>
-	        reg_data_out <= key_schedule(4)(0)(0) & key_schedule(4)(0)(1) & key_schedule(4)(0)(2) & key_schedule(4)(0)(3);
+	        reg_data_out <= round_key(4)(0)(0) & round_key(4)(0)(1) & round_key(4)(0)(2) & round_key(4)(0)(3);
 	      when b"010101" =>
-	        reg_data_out <= key_schedule(4)(1)(0) & key_schedule(4)(1)(1) & key_schedule(4)(1)(2) & key_schedule(4)(1)(3);
+	        reg_data_out <= round_key(4)(1)(0) & round_key(4)(1)(1) & round_key(4)(1)(2) & round_key(4)(1)(3);
 	      when b"010110" =>
-	        reg_data_out <= key_schedule(4)(2)(0) & key_schedule(4)(2)(1) & key_schedule(4)(2)(2) & key_schedule(4)(2)(3);
+	        reg_data_out <= round_key(4)(2)(0) & round_key(4)(2)(1) & round_key(4)(2)(2) & round_key(4)(2)(3);
 	      when b"010111" =>
-	        reg_data_out <= key_schedule(4)(3)(0) & key_schedule(4)(3)(1) & key_schedule(4)(3)(2) & key_schedule(4)(3)(3);
+	        reg_data_out <= round_key(4)(3)(0) & round_key(4)(3)(1) & round_key(4)(3)(2) & round_key(4)(3)(3);
 	      when b"011000" =>
-	        reg_data_out <= key_schedule(5)(0)(0) & key_schedule(5)(0)(1) & key_schedule(5)(0)(2) & key_schedule(5)(0)(3);
+	        reg_data_out <= round_key(5)(0)(0) & round_key(5)(0)(1) & round_key(5)(0)(2) & round_key(5)(0)(3);
 	      when b"011001" =>
-	        reg_data_out <= key_schedule(5)(1)(0) & key_schedule(5)(1)(1) & key_schedule(5)(1)(2) & key_schedule(5)(1)(3);
+	        reg_data_out <= round_key(5)(1)(0) & round_key(5)(1)(1) & round_key(5)(1)(2) & round_key(5)(1)(3);
 	      when b"011010" =>
-	        reg_data_out <= key_schedule(5)(2)(0) & key_schedule(5)(2)(1) & key_schedule(5)(2)(2) & key_schedule(5)(2)(3);
+	        reg_data_out <= round_key(5)(2)(0) & round_key(5)(2)(1) & round_key(5)(2)(2) & round_key(5)(2)(3);
 	      when b"011011" =>
-	        reg_data_out <= key_schedule(5)(3)(0) & key_schedule(5)(3)(1) & key_schedule(5)(3)(2) & key_schedule(5)(3)(3);
+	        reg_data_out <= round_key(5)(3)(0) & round_key(5)(3)(1) & round_key(5)(3)(2) & round_key(5)(3)(3);
 	      when b"011100" =>
-	        reg_data_out <= key_schedule(6)(0)(0) & key_schedule(6)(0)(1) & key_schedule(6)(0)(2) & key_schedule(6)(0)(3);
+	        reg_data_out <= round_key(6)(0)(0) & round_key(6)(0)(1) & round_key(6)(0)(2) & round_key(6)(0)(3);
 	      when b"011101" =>
-	        reg_data_out <= key_schedule(6)(1)(0) & key_schedule(6)(1)(1) & key_schedule(6)(1)(2) & key_schedule(6)(1)(3);
+	        reg_data_out <= round_key(6)(1)(0) & round_key(6)(1)(1) & round_key(6)(1)(2) & round_key(6)(1)(3);
 	      when b"011110" =>
-	        reg_data_out <= key_schedule(6)(2)(0) & key_schedule(6)(2)(1) & key_schedule(6)(2)(2) & key_schedule(6)(2)(3);
+	        reg_data_out <= round_key(6)(2)(0) & round_key(6)(2)(1) & round_key(6)(2)(2) & round_key(6)(2)(3);
 	      when b"011111" =>
-	        reg_data_out <= key_schedule(6)(3)(0) & key_schedule(6)(3)(1) & key_schedule(6)(3)(2) & key_schedule(6)(3)(3);
+	        reg_data_out <= round_key(6)(3)(0) & round_key(6)(3)(1) & round_key(6)(3)(2) & round_key(6)(3)(3);
 	      when b"100000" =>
-	        reg_data_out <= key_schedule(7)(0)(0) & key_schedule(7)(0)(1) & key_schedule(7)(0)(2) & key_schedule(7)(0)(3);
+	        reg_data_out <= round_key(7)(0)(0) & round_key(7)(0)(1) & round_key(7)(0)(2) & round_key(7)(0)(3);
 	      when b"100001" =>
-	        reg_data_out <= key_schedule(7)(1)(0) & key_schedule(7)(1)(1) & key_schedule(7)(1)(2) & key_schedule(7)(1)(3);
+	        reg_data_out <= round_key(7)(1)(0) & round_key(7)(1)(1) & round_key(7)(1)(2) & round_key(7)(1)(3);
 	      when b"100010" =>
-	        reg_data_out <= key_schedule(7)(2)(0) & key_schedule(7)(2)(1) & key_schedule(7)(2)(2) & key_schedule(7)(2)(3);
+	        reg_data_out <= round_key(7)(2)(0) & round_key(7)(2)(1) & round_key(7)(2)(2) & round_key(7)(2)(3);
 	      when b"100011" =>
-	        reg_data_out <= key_schedule(7)(3)(0) & key_schedule(7)(3)(1) & key_schedule(7)(3)(2) & key_schedule(7)(3)(3);
+	        reg_data_out <= round_key(7)(3)(0) & round_key(7)(3)(1) & round_key(7)(3)(2) & round_key(7)(3)(3);
 	      when b"100100" =>
-	        reg_data_out <= key_schedule(8)(0)(0) & key_schedule(8)(0)(1) & key_schedule(8)(0)(2) & key_schedule(8)(0)(3);
+	        reg_data_out <= round_key(8)(0)(0) & round_key(8)(0)(1) & round_key(8)(0)(2) & round_key(8)(0)(3);
 	      when b"100101" =>
-	        reg_data_out <= key_schedule(8)(1)(0) & key_schedule(8)(1)(1) & key_schedule(8)(1)(2) & key_schedule(8)(1)(3);
+	        reg_data_out <= round_key(8)(1)(0) & round_key(8)(1)(1) & round_key(8)(1)(2) & round_key(8)(1)(3);
 	      when b"100110" =>
-	        reg_data_out <= key_schedule(8)(2)(0) & key_schedule(8)(2)(1) & key_schedule(8)(2)(2) & key_schedule(8)(2)(3);
+	        reg_data_out <= round_key(8)(2)(0) & round_key(8)(2)(1) & round_key(8)(2)(2) & round_key(8)(2)(3);
 	      when b"100111" =>
-	        reg_data_out <= key_schedule(8)(3)(0) & key_schedule(8)(3)(1) & key_schedule(8)(3)(2) & key_schedule(8)(3)(3);
+	        reg_data_out <= round_key(8)(3)(0) & round_key(8)(3)(1) & round_key(8)(3)(2) & round_key(8)(3)(3);
 	      when b"101000" =>
-	        reg_data_out <= key_schedule(9)(0)(0) & key_schedule(9)(0)(1) & key_schedule(9)(0)(2) & key_schedule(9)(0)(3);
+	        reg_data_out <= round_key(9)(0)(0) & round_key(9)(0)(1) & round_key(9)(0)(2) & round_key(9)(0)(3);
 	      when b"101001" =>
-	        reg_data_out <= key_schedule(9)(1)(0) & key_schedule(9)(1)(1) & key_schedule(9)(1)(2) & key_schedule(9)(1)(3);
+	        reg_data_out <= round_key(9)(1)(0) & round_key(9)(1)(1) & round_key(9)(1)(2) & round_key(9)(1)(3);
 	      when b"101010" =>
-	        reg_data_out <= key_schedule(9)(2)(0) & key_schedule(9)(2)(1) & key_schedule(9)(2)(2) & key_schedule(9)(2)(3);
+	        reg_data_out <= round_key(9)(2)(0) & round_key(9)(2)(1) & round_key(9)(2)(2) & round_key(9)(2)(3);
 	      when b"101011" =>
-	        reg_data_out <= key_schedule(9)(3)(0) & key_schedule(9)(3)(1) & key_schedule(9)(3)(2) & key_schedule(9)(3)(3);
+	        reg_data_out <= round_key(9)(3)(0) & round_key(9)(3)(1) & round_key(9)(3)(2) & round_key(9)(3)(3);
 	      when b"101100" =>
-	        reg_data_out <= key_schedule(10)(0)(0) & key_schedule(10)(0)(1) & key_schedule(10)(0)(2) & key_schedule(10)(0)(3);
+	        reg_data_out <= round_key(10)(0)(0) & round_key(10)(0)(1) & round_key(10)(0)(2) & round_key(10)(0)(3);
 	      when b"101101" =>
-	        reg_data_out <= key_schedule(10)(1)(0) & key_schedule(10)(1)(1) & key_schedule(10)(1)(2) & key_schedule(10)(1)(3);
+	        reg_data_out <= round_key(10)(1)(0) & round_key(10)(1)(1) & round_key(10)(1)(2) & round_key(10)(1)(3);
 	      when b"101110" =>
-	        reg_data_out <= key_schedule(10)(2)(0) & key_schedule(10)(2)(1) & key_schedule(10)(2)(2) & key_schedule(10)(2)(3);
+	        reg_data_out <= round_key(10)(2)(0) & round_key(10)(2)(1) & round_key(10)(2)(2) & round_key(10)(2)(3);
 	      when b"101111" =>
-	        reg_data_out <= key_schedule(10)(3)(0) & key_schedule(10)(3)(1) & key_schedule(10)(3)(2) & key_schedule(10)(3)(3);
+	        reg_data_out <= round_key(10)(3)(0) & round_key(10)(3)(1) & round_key(10)(3)(2) & round_key(10)(3)(3);
 	      when b"110000" =>
 	        reg_data_out <= slv_reg48;
 	      when b"110001" =>
@@ -1013,6 +999,7 @@ begin
 
 	-- Add user logic here
 	
+	-- Input key
 	slv_reg0_word_array <= (
         (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
         (slv_reg1(31 downto 24), slv_reg1(23 downto 16), slv_reg1(15 downto 8), slv_reg1(7 downto 0)),
@@ -1024,8 +1011,8 @@ begin
 	generic map (
 	    mode => mode)
 	port map(
-	    k => slv_reg0_word_array,
-        o => key_schedule);
+	    inKey => slv_reg0_word_array,
+        outRoundKey => round_key);
 	
 	-- User logic ends
 
