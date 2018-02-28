@@ -845,10 +845,10 @@
         <xilinx:taxonomy>AXI_Peripheral</xilinx:taxonomy>
       </xilinx:taxonomies>
       <xilinx:displayName>Key_Expansion_v0.5</xilinx:displayName>
-      <xilinx:coreRevision>3</xilinx:coreRevision>
-      <xilinx:coreCreationDateTime>2018-02-28T02:08:33Z</xilinx:coreCreationDateTime>
+      <xilinx:coreRevision>4</xilinx:coreRevision>
+      <xilinx:coreCreationDateTime>2018-02-28T20:10:45Z</xilinx:coreCreationDateTime>
       <xilinx:tags>
-        <xilinx:tag xilinx:name="sfu.ca:user:Key_Expansion:0.5_ARCHIVE_LOCATION">c:/Users/jrtsang/Desktop/zedboard_aes/ip_repo/Key_Expansion_0.5</xilinx:tag>
+        <xilinx:tag xilinx:name="sfu.ca:user:Key_Expansion:0.5_ARCHIVE_LOCATION">c:/Users/jason/Desktop/zedboard_aes/ip_repo/Key_Expansion_0.5</xilinx:tag>
       </xilinx:tags>
     </xilinx:coreExtensions>
     <xilinx:packagingInfo>
