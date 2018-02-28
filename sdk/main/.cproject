@@ -35,7 +35,7 @@
 								</option>
 								<option id="xilinx.gnu.compiler.inferred.swplatform.flags.1262108276" name="Software Platform Inferred Flags" superClass="xilinx.gnu.compiler.inferred.swplatform.flags" value=" " valueType="string"/>
 								<option id="xilinx.gnu.compiler.symbols.defined.930022304" name="Defined symbols (-D)" superClass="xilinx.gnu.compiler.symbols.defined" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="MILESTONE2"/>
+									<listOptionValue builtIn="false" value="MILESTONE3"/>
 								</option>
 								<inputType id="xilinx.gnu.armv7.c.compiler.input.751226192" name="C source files" superClass="xilinx.gnu.armv7.c.compiler.input"/>
 							</tool>
@@ -190,4 +190,5 @@
 		</configuration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>
