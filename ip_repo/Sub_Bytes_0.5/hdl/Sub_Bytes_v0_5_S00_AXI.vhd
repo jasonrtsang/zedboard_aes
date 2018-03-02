@@ -129,7 +129,7 @@ architecture arch_imp of Sub_Bytes_v0_5_S00_AXI is
 	-- Add user component here
 
 	component subBytes
-		port (inMode : in AES_MODE;
+		port (inMode   : in  AES_MODE;
 		      inState  : in  STATE;
 			  outState : out STATE);
     end component subBytes;

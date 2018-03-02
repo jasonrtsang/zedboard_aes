@@ -128,12 +128,15 @@ architecture arch_imp of Shift_Rows_v0_5_S00_AXI is
 	-- Add user component here
 
 	component shiftRows
-		port (inState  : in  STATE;
+		port (inMode   : in  AES_MODE;
+			  inState  : in  STATE;
 			  outState : out STATE);
     end component shiftRows;
 	
 	signal slv_reg_state : STATE;
 	signal output_state  : STATE;
+	signal mode_select	 : AES_MODE;
+	constant zeros : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
 	
 	-- User component ends	
 	
@@ -476,6 +479,8 @@ begin
 
 	-- Add user logic here
 
+	mode_select <= ENCRYPTION when (slv_reg8 = zeros) else DECRYPTION;
+	
 	-- Input state
 	slv_reg_state <= (
         (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
@@ -486,6 +491,7 @@ begin
 	
 	shiftRowsP : shiftRows
     port map(
+		inMode => mode_select,
         inState => slv_reg_state,
         outState => output_state);
 
