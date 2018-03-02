@@ -67,6 +67,11 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
   #define MULTIPLY_AS_A_FUNCTION 0
 #endif
 
+#ifdef MILESTONE3
+#define ENCRYPTION 0
+#define DECRYPTION 1
+#endif // MILESTONE3
+
 
 /*****************************************************************************/
 /* Private variables:                                                        */
@@ -525,6 +530,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	*(subByte_p+2) = state_2;
 	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
 	*(subByte_p+3) = state_3;
+	*(subByte_p+8) = ENCRYPTION;
 
 	k = 4;
 	for (i = 0; i < 4; i++) {
@@ -558,6 +564,7 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
 	*(shiftRows_p+2) = state_2;
 	state_3 = (*state)[3][0] << 24 | (*state)[3][1] << 16 | (*state)[3][2] << 8 | (*state)[3][3];
 	*(shiftRows_p+3) = state_3;
+	*(shiftRows_p+8) = ENCRYPTION;
 
 	k = 4;
 	for (i = 0; i < 4; i++) {

@@ -42,6 +42,11 @@ bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 #define TESTBIN_SIZE_64 64
 static FIL fil; // Specified file input
 
+#ifdef MILESTONE2
+#define ENCRYPTION 0
+#define DECRYPTION 1
+#endif // MILESTONE2
+
 /*****************************************************************************
 *
 * Main function
@@ -295,6 +300,7 @@ int main(void)
 						*(baseaddr_p+2) = input_2;
 						uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
 						*(baseaddr_p+3) = input_3;
+						*(baseaddr_p+48) = ENCRYPTION;
 
 						/* Output round keys */
 						j = 0;
