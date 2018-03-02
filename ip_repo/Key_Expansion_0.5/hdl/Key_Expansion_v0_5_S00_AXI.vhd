@@ -7,8 +7,6 @@ entity Key_Expansion_v0_5_S00_AXI is
 	generic (
 		-- Users to add parameters here
 		
-		mode : AES_MODE := ENCRYPTION;
-
 		-- User parameters ends
 		-- Do not modify the parameters beyond this line
 
@@ -170,13 +168,15 @@ architecture arch_imp of Key_Expansion_v0_5_S00_AXI is
 	-- Add user component here
 
 	component keyExpansion   
-		generic (mode : AES_MODE := ENCRYPTION);     
-		port (inKey       : in  WORD_ARRAY  (0 to word_size-1);
+		port (inMode      : in AES_MODE;
+			  inKey       : in  WORD_ARRAY  (0 to word_size-1);
 			  outRoundKey : out STATE_ARRAY (0 to num_rounds-1));
     end component keyExpansion;
 
 	signal round_key : STATE_ARRAY (0 to num_rounds-1);
 	signal slv_reg0_word_array : WORD_ARRAY (0 to 3); -- for key
+	signal mode_select	 : AES_MODE;
+	constant zeros : std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0) := (others => '0');
 	
 	-- User component ends
 	
@@ -999,6 +999,8 @@ begin
 
 	-- Add user logic here
 	
+	mode_select <= ENCRYPTION when (slv_reg48 = zeros) else DECRYPTION;
+	
 	-- Input key
 	slv_reg0_word_array <= (
         (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
@@ -1008,9 +1010,8 @@ begin
     );
 	
 	keyExpansionP : keyExpansion
-	generic map (
-	    mode => mode)
 	port map(
+		inMode => mode_select,
 	    inKey => slv_reg0_word_array,
         outRoundKey => round_key);
 	

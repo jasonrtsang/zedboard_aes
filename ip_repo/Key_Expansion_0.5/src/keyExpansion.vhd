@@ -3,14 +3,16 @@ use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
 entity keyExpansion is
-    generic (mode : AES_MODE := DECRYPTION);
-    port (inKey       : in  WORD_ARRAY  (0 to word_size-1);
+    port (inMode      : in AES_MODE;
+		  inKey       : in  WORD_ARRAY  (0 to word_size-1);
           outRoundKey : out STATE_ARRAY (0 to num_rounds-1));
 end keyExpansion;
 
 -- Create round keys for each state/ round in AES from key
 architecture behavioral of keyExpansion is
     signal tmp : WORD_ARRAY (0 to word_size*num_rounds-1); -- 44 (4 words (32-bits) for 11 rounds)
+	signal outRoundKey_encrypt : STATE_ARRAY (0 to num_rounds-1);
+	signal outRoundKey_decrypt : STATE_ARRAY (0 to num_rounds-1);
 begin
     tmp(0 to word_size-1) <= inKey;
     
@@ -68,17 +70,16 @@ begin
     subRotRcon09: entity work.subRotRcon port map (inWord1 => tmp(32), inWord2 => tmp(35), rcon => RCON( 9), outWord => tmp(36));
     subRotRcon10: entity work.subRotRcon port map (inWord1 => tmp(36), inWord2 => tmp(39), rcon => RCON(10), outWord => tmp(40));
     
-    AES_ENCRYPT: if mode = ENCRYPTION generate 
-        -- First round is the key itself
-        loopOutput: for i in 0 to num_rounds-1 generate
-            outRoundKey(i) <= (tmp(i*word_size), tmp(i*word_size+1), tmp(i*word_size+2), tmp(i*word_size+3));
-        end generate loopOutput;
-    end generate AES_ENCRYPT;
-    
+	-- Encrypt
+    -- First round is the key itself
+	loopOutput_encrypt: for i in 0 to num_rounds-1 generate
+		outRoundKey_encrypt(i) <= (tmp(i*word_size), tmp(i*word_size+1), tmp(i*word_size+2), tmp(i*word_size+3));
+	end generate loopOutput_encrypt;
+	-- Decrypt
     -- Decryption round keys in reverse
-    AES_DECRYPT: if mode = DECRYPTION generate
-        loopOutput: for i in 0 to num_rounds-1 generate
-            outRoundKey(num_rounds-1-i) <= (tmp(i*word_size), tmp(i*word_size+1), tmp(i*word_size+2), tmp(i*word_size+3));
-        end generate loopOutput;
-    end generate AES_DECRYPT;   
+	loopOutput_decrypt: for i in 0 to num_rounds-1 generate
+		outRoundKey_decrypt(num_rounds-1-i) <= (tmp(i*word_size), tmp(i*word_size+1), tmp(i*word_size+2), tmp(i*word_size+3));
+	end generate loopOutput_decrypt;
+	-- Mux
+	outRoundKey <= outRoundKey_encrypt when (inMode = ENCRYPTION) else outRoundKey_decrypt;
 end behavioral;
