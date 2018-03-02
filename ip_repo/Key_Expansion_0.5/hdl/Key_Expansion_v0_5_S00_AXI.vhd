@@ -170,7 +170,7 @@ architecture arch_imp of Key_Expansion_v0_5_S00_AXI is
 	-- Add user component here
 
 	component keyExpansion   
-		generic (mode : AES_MODE := DECRYPTION);     
+		generic (mode : AES_MODE := ENCRYPTION);     
 		port (inKey       : in  WORD_ARRAY  (0 to word_size-1);
 			  outRoundKey : out STATE_ARRAY (0 to num_rounds-1));
     end component keyExpansion;
