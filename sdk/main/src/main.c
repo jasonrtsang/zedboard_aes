@@ -42,10 +42,10 @@ bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 #define TESTBIN_SIZE_64 64
 static FIL fil; // Specified file input
 
-#ifdef MILESTONE2
+#if defined(MILESTONE2) || defined(MILESTONE3)
 #define ENCRYPTION 0
 #define DECRYPTION 1
-#endif // MILESTONE2
+#endif // MILESTONE2 || MILESTONE3
 
 /*****************************************************************************
 *
@@ -94,10 +94,10 @@ int main(void)
     static XGpio GpioSW0_Ptr;  // XPAR_AXI_GPIO_0_DEVICE_ID, SW0
     uint32_t readSW0 = 0;
 
-#ifdef MILESTONE2
+#if defined(MILESTONE2) || defined(MILESTONE3)
     int j;
     struct AES_ctx ctx_block; // Context
-#endif // MILESTONE2
+#endif // MILESTONE2 || MILESTONE3
 
     struct AES_ctx ctx; // Context
 
@@ -346,6 +346,48 @@ int main(void)
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx(&ctx, key);
+
+#ifdef MILESTONE3
+						uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
+						/* Input key */
+						uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
+						*(baseaddr_p+0) = input_0;
+						uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
+						*(baseaddr_p+1) = input_1;
+						uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
+						*(baseaddr_p+2) = input_2;
+						uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
+						*(baseaddr_p+3) = input_3;
+						*(baseaddr_p+48) = ENCRYPTION;
+
+						/* Output round keys */
+						j = 0;
+						for (i = 4; i < 48; i++) {
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
+							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
+							ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
+						}
+
+						/* Print IP block vs SW implementation */
+						printf("\nHW Round Keys\n");
+						for (i = 0; i < 176; i++) {
+							printf("%.2x ", ctx_block.RoundKey[i]);
+						}
+						printf("\n\nSW Round Keys\n");
+						for (i = 0; i < 176; i++) {
+							printf("%.2x ", ctx.RoundKey[i]);
+						}
+						printf("\n");
+
+						/* Diff SW and HW to validate */
+						for (i = 0; i < 176; i++) {
+							if (ctx.RoundKey[i] != ctx_block.RoundKey[i]) {
+								printf("UH OH: SW Key Expansion does not match that of HW\r\n");
+							}
+						}
+#endif // MILESTONE3
+
                         AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead, readSW0);
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
