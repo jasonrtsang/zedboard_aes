@@ -686,14 +686,14 @@ static void InvCipher(state_t* state,uint8_t* RoundKey)
 		k++;
 	}
 
-	pstate(0, "First: AddRoundKey (HW)", state_block);
+	pstate(Nr, "First: AddRoundKey (HW)", state_block);
 #endif // MILESTONE3
 
   // Add the First round key to the state before starting the rounds.
   AddRoundKey(Nr, state, RoundKey);
 
 #ifdef MILESTONE3
-    pstate(0, "First: AddRoundKey (SW)", state);
+    pstate(Nr, "First: AddRoundKey (SW)", state);
 	/* Diff SW and HW to validate */
 	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
 		printf("UH OH: SW Loop AddRoundKey does not match that of HW\r\n");
@@ -742,13 +742,13 @@ static void InvCipher(state_t* state,uint8_t* RoundKey)
 		k++;
 	}
 
-	pstate(Nr, "Last: invShiftRow (HW)", state_block);
+	pstate(round, "Last: invShiftRow (HW)", state_block);
 #endif // MILESTONE3
 
   InvShiftRows(state);
 
 #ifdef MILESTONE3
-  	pstate(Nr, "Last: invShiftRow (SW)", state);
+  	pstate(round, "Last: invShiftRow (SW)", state);
 	/* Diff SW and HW to validate */
 	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
 		printf("UH OH: SW Last invShiftRow does not match that of HW\r\n");
@@ -778,13 +778,13 @@ static void InvCipher(state_t* state,uint8_t* RoundKey)
 		k++;
 	}
 
-	pstate(Nr, "Last: invSubByte (HW)", state_block);
+	pstate(round, "Last: invSubByte (HW)", state_block);
 #endif // MILESTONE3
 
   InvSubBytes(state);
 
 #ifdef MILESTONE3
-  	pstate(Nr, "Last: invSubByte (SW)", state);
+  	pstate(round, "Last: invSubByte (SW)", state);
 	/* Diff SW and HW to validate */
 	if (memcmp((void*)state, (void*)state_block, sizeof(state_t)) != 0) {
 		printf("UH OH: SW Last invSubByte does not match that of HW\r\n");
