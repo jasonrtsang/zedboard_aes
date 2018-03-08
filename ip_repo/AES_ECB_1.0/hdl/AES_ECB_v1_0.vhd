@@ -56,6 +56,7 @@ architecture arch_imp of AES_ECB_v1_0 is
 		-- User ports
 		S_AXIS_INPUT_KEY : out STATE;
         S_AXIS_INPUT_STATE : out STATE;
+        S_AXIS_INPUT_MODE : out AES_MODE;
         -- User ports end
 		S_AXIS_ACLK	: in std_logic;
 		S_AXIS_ARESETN	: in std_logic;
@@ -73,6 +74,9 @@ architecture arch_imp of AES_ECB_v1_0 is
 		C_M_START_COUNT	: integer	:= 32
 		);
 		port (
+		-- User ports
+        M_AXIS_INPUT_STATE : in STATE;
+        -- User ports end
 		M_AXIS_ACLK	: in std_logic;
 		M_AXIS_ARESETN	: in std_logic;
 		M_AXIS_TVALID	: out std_logic;
@@ -82,6 +86,23 @@ architecture arch_imp of AES_ECB_v1_0 is
 		M_AXIS_TREADY	: in std_logic
 		);
 	end component AES_ECB_v1_0_M00_AXIS;
+	
+	-- Add user components here
+    
+    component main_ecb is
+        port (inMode   : in AES_MODE;
+              inKey    : in STATE;
+              inState  : in STATE;
+              outState : out STATE);        
+    end component main_ecb;
+    
+    signal s00_axis_input_key : STATE;
+    signal s00_axis_input_state : STATE;
+    signal s00_axis_input_mode : AES_MODE;
+    
+    signal m00_axis_input_state : STATE;
+
+    -- User components ends
 
 begin
 
@@ -91,6 +112,11 @@ AES_ECB_v1_0_S00_AXIS_inst : AES_ECB_v1_0_S00_AXIS
 		C_S_AXIS_TDATA_WIDTH	=> C_S00_AXIS_TDATA_WIDTH
 	)
 	port map (
+		-- User ports
+        S_AXIS_INPUT_KEY => s00_axis_input_key,
+        S_AXIS_INPUT_STATE => s00_axis_input_state,
+        S_AXIS_INPUT_MODE => s00_axis_input_mode,
+        -- User ports end
 		S_AXIS_ACLK	=> s00_axis_aclk,
 		S_AXIS_ARESETN	=> s00_axis_aresetn,
 		S_AXIS_TREADY	=> s00_axis_tready,
@@ -107,6 +133,9 @@ AES_ECB_v1_0_M00_AXIS_inst : AES_ECB_v1_0_M00_AXIS
 		C_M_START_COUNT	=> C_M00_AXIS_START_COUNT
 	)
 	port map (
+		-- User ports
+        M_AXIS_INPUT_STATE => m00_axis_input_state,
+        -- User ports end
 		M_AXIS_ACLK	=> m00_axis_aclk,
 		M_AXIS_ARESETN	=> m00_axis_aresetn,
 		M_AXIS_TVALID	=> m00_axis_tvalid,
@@ -117,6 +146,15 @@ AES_ECB_v1_0_M00_AXIS_inst : AES_ECB_v1_0_M00_AXIS
 	);
 
 	-- Add user logic here
+	
+-- Instantiation of main ecb fifo
+    main_ecb_inst : main_ecb
+        port map (
+            inMode => s00_axis_input_mode,
+            inKey => s00_axis_input_key,
+            inState => s00_axis_input_state,
+            outState => m00_axis_input_state    
+        );
 
 	-- User logic ends
 

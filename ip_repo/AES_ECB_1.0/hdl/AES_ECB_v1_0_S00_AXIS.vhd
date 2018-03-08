@@ -18,6 +18,7 @@ entity AES_ECB_v1_0_S00_AXIS is
 
 		S_AXIS_INPUT_KEY : out STATE;
         S_AXIS_INPUT_STATE : out STATE;
+        S_AXIS_INPUT_MODE : out AES_MODE;
 		
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -59,7 +60,7 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	end;    
 
 	-- Total number of input data.
-	constant NUMBER_OF_INPUT_BYTES : integer := 32;
+	constant NUMBER_OF_INPUT_BYTES : integer := 33;
 	-- bit_num gives the minimum number of bits needed to address 'NUMBER_OF_INPUT_BYTES' size of FIFO.
 	constant bit_num  : integer := clogb2(NUMBER_OF_INPUT_BYTES-1);
 	-- Define the states of state machine
@@ -88,6 +89,8 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
     
     -- Input buffer
     signal stream_data_fifo : BYTE_FIFO_TYPE;
+    
+    constant ZEROS : std_logic_vector(C_S_AXIS_TDATA_WIDTH-1 downto 0) := (others => '0');
 
     -- User components ends
 
@@ -198,7 +201,11 @@ begin
         (stream_data_fifo(24), stream_data_fifo(25), stream_data_fifo(26), stream_data_fifo(27)),
         (stream_data_fifo(28), stream_data_fifo(29), stream_data_fifo(30), stream_data_fifo(31))
     );
+    
+    -- Encryption or Decryption
 
+    S_AXIS_INPUT_MODE <= ENCRYPTION when (stream_data_fifo(32) = ZEROS) else DECRYPTION;
+    
 	-- User logic ends
 
 end arch_imp;
