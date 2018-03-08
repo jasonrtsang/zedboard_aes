@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.aes_package.all;
 
 entity AES_ECB_v1_0 is
 	generic (

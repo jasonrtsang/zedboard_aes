@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.aes_package.all;
 
 entity AES_ECB_v1_0_S00_AXIS is
 	generic (
@@ -15,6 +16,9 @@ entity AES_ECB_v1_0_S00_AXIS is
 	port (
 		-- Users to add ports here
 
+		S_AXIS_INPUT_KEY : out STATE;
+        S_AXIS_INPUT_STATE : out STATE;
+		
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
