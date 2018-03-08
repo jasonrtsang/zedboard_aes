@@ -52,6 +52,10 @@ architecture arch_imp of AES_ECB_v1_0 is
 		C_S_AXIS_TDATA_WIDTH	: integer	:= 32
 		);
 		port (
+		-- User ports
+		S_AXIS_INPUT_KEY : out STATE;
+        S_AXIS_INPUT_STATE : out STATE;
+        -- User ports end
 		S_AXIS_ACLK	: in std_logic;
 		S_AXIS_ARESETN	: in std_logic;
 		S_AXIS_TREADY	: out std_logic;

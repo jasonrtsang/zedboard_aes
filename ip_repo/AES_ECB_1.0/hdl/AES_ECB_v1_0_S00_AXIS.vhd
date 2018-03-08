@@ -79,6 +79,14 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	signal writes_done : std_logic;
 
 	type BYTE_FIFO_TYPE is array (0 to (NUMBER_OF_INPUT_WORDS-1)) of std_logic_vector(((C_S_AXIS_TDATA_WIDTH/4)-1)downto 0);
+	
+	-- Add user components here
+    
+    -- Input buffer
+    signal stream_data_fifo : BYTE_FIFO_TYPE;
+
+    -- User components ends
+
 begin
 	-- I/O Connections assignments
 
@@ -156,7 +164,6 @@ begin
 	-- FIFO Implementation
 	 FIFO_GEN: for byte_index in 0 to (C_S_AXIS_TDATA_WIDTH/8-1) generate
 
-	 signal stream_data_fifo : BYTE_FIFO_TYPE;
 	 begin   
 	  -- Streaming input data is stored in FIFO
 	  process(S_AXIS_ACLK)
@@ -171,6 +178,22 @@ begin
 	end generate FIFO_GEN;
 
 	-- Add user logic here
+
+	-- Input Round Key
+    S_AXIS_INPUT_KEY <= (
+        (stream_data_fifo(0)(31 downto 24), stream_data_fifo(0)(23 downto 16), stream_data_fifo(0)(15 downto 8), stream_data_fifo(0)(7 downto 0)),
+        (stream_data_fifo(1)(31 downto 24), stream_data_fifo(1)(23 downto 16), stream_data_fifo(1)(15 downto 8), stream_data_fifo(1)(7 downto 0)),
+        (stream_data_fifo(2)(31 downto 24), stream_data_fifo(2)(23 downto 16), stream_data_fifo(2)(15 downto 8), stream_data_fifo(2)(7 downto 0)),
+        (stream_data_fifo(3)(31 downto 24), stream_data_fifo(3)(23 downto 16), stream_data_fifo(3)(15 downto 8), stream_data_fifo(3)(7 downto 0))
+    );
+    
+    -- Input State
+    S_AXIS_INPUT_STATE <= (
+        (stream_data_fifo(4)(31 downto 24), stream_data_fifo(4)(23 downto 16), stream_data_fifo(4)(15 downto 8), stream_data_fifo(4)(7 downto 0)),
+        (stream_data_fifo(7)(31 downto 24), stream_data_fifo(5)(23 downto 16), stream_data_fifo(5)(15 downto 8), stream_data_fifo(5)(7 downto 0)),
+        (stream_data_fifo(6)(31 downto 24), stream_data_fifo(6)(23 downto 16), stream_data_fifo(6)(15 downto 8), stream_data_fifo(6)(7 downto 0)),
+        (stream_data_fifo(7)(31 downto 24), stream_data_fifo(7)(23 downto 16), stream_data_fifo(7)(15 downto 8), stream_data_fifo(7)(7 downto 0))
+    );
 
 	-- User logic ends
 
