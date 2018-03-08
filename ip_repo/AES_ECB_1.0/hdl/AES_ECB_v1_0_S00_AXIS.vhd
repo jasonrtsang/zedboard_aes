@@ -59,9 +59,9 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	end;    
 
 	-- Total number of input data.
-	constant NUMBER_OF_INPUT_WORDS  : integer := 8;
-	-- bit_num gives the minimum number of bits needed to address 'NUMBER_OF_INPUT_WORDS' size of FIFO.
-	constant bit_num  : integer := clogb2(NUMBER_OF_INPUT_WORDS-1);
+	constant NUMBER_OF_INPUT_BYTES : integer := 32;
+	-- bit_num gives the minimum number of bits needed to address 'NUMBER_OF_INPUT_BYTES' size of FIFO.
+	constant bit_num  : integer := clogb2(NUMBER_OF_INPUT_BYTES-1);
 	-- Define the states of state machine
 	-- The control state machine oversees the writing of input streaming data to the FIFO,
 	-- and outputs the streaming data from the FIFO
@@ -82,7 +82,7 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	-- sink has accepted all the streaming data and stored in FIFO
 	signal writes_done : std_logic;
 
-	type BYTE_FIFO_TYPE is array (0 to (NUMBER_OF_INPUT_WORDS-1)) of std_logic_vector(((C_S_AXIS_TDATA_WIDTH/4)-1)downto 0);
+	type BYTE_FIFO_TYPE is array (0 to (NUMBER_OF_INPUT_BYTES-1)) of std_logic_vector(((C_S_AXIS_TDATA_WIDTH/4)-1)downto 0);
 	
 	-- Add user components here
     
@@ -135,8 +135,8 @@ begin
 	-- AXI Streaming Sink 
 	-- 
 	-- The example design sink is always ready to accept the S_AXIS_TDATA  until
-	-- the FIFO is not filled with NUMBER_OF_INPUT_WORDS number of input words.
-	axis_tready <= '1' when ((mst_exec_state = WRITE_FIFO) and (write_pointer <= NUMBER_OF_INPUT_WORDS-1)) else '0';
+	-- the FIFO is not filled with NUMBER_OF_INPUT_BYTES number of input words.
+	axis_tready <= '1' when ((mst_exec_state = WRITE_FIFO) and (write_pointer <= NUMBER_OF_INPUT_BYTES-1)) else '0';
 
 	process(S_AXIS_ACLK)
 	begin
@@ -145,15 +145,15 @@ begin
 	      write_pointer <= 0;
 	      writes_done <= '0';
 	    else
-	      if (write_pointer <= NUMBER_OF_INPUT_WORDS-1) then
+	      if (write_pointer <= NUMBER_OF_INPUT_BYTES-1) then
 	        if (fifo_wren = '1') then
 	          -- write pointer is incremented after every write to the FIFO
 	          -- when FIFO write signal is enabled.
 	          write_pointer <= write_pointer + 1;
 	          writes_done <= '0';
 	        end if;
-	        if ((write_pointer = NUMBER_OF_INPUT_WORDS-1) or S_AXIS_TLAST = '1') then
-	          -- reads_done is asserted when NUMBER_OF_INPUT_WORDS numbers of streaming data 
+	        if ((write_pointer = NUMBER_OF_INPUT_BYTES-1) or S_AXIS_TLAST = '1') then
+	          -- reads_done is asserted when NUMBER_OF_INPUT_BYTES numbers of streaming data 
 	          -- has been written to the FIFO which is also marked by S_AXIS_TLAST(kept for optional usage).
 	          writes_done <= '1';
 	        end if;
@@ -185,18 +185,18 @@ begin
 
 	-- Input Round Key
     S_AXIS_INPUT_KEY <= (
-        (stream_data_fifo(0)(31 downto 24), stream_data_fifo(0)(23 downto 16), stream_data_fifo(0)(15 downto 8), stream_data_fifo(0)(7 downto 0)),
-        (stream_data_fifo(1)(31 downto 24), stream_data_fifo(1)(23 downto 16), stream_data_fifo(1)(15 downto 8), stream_data_fifo(1)(7 downto 0)),
-        (stream_data_fifo(2)(31 downto 24), stream_data_fifo(2)(23 downto 16), stream_data_fifo(2)(15 downto 8), stream_data_fifo(2)(7 downto 0)),
-        (stream_data_fifo(3)(31 downto 24), stream_data_fifo(3)(23 downto 16), stream_data_fifo(3)(15 downto 8), stream_data_fifo(3)(7 downto 0))
+        (stream_data_fifo(0),  stream_data_fifo(1),  stream_data_fifo(2),  stream_data_fifo(3)),
+        (stream_data_fifo(4),  stream_data_fifo(5),  stream_data_fifo(6),  stream_data_fifo(7)),
+        (stream_data_fifo(8),  stream_data_fifo(9),  stream_data_fifo(10), stream_data_fifo(11)),
+        (stream_data_fifo(12), stream_data_fifo(13), stream_data_fifo(14), stream_data_fifo(15))
     );
     
     -- Input State
     S_AXIS_INPUT_STATE <= (
-        (stream_data_fifo(4)(31 downto 24), stream_data_fifo(4)(23 downto 16), stream_data_fifo(4)(15 downto 8), stream_data_fifo(4)(7 downto 0)),
-        (stream_data_fifo(7)(31 downto 24), stream_data_fifo(5)(23 downto 16), stream_data_fifo(5)(15 downto 8), stream_data_fifo(5)(7 downto 0)),
-        (stream_data_fifo(6)(31 downto 24), stream_data_fifo(6)(23 downto 16), stream_data_fifo(6)(15 downto 8), stream_data_fifo(6)(7 downto 0)),
-        (stream_data_fifo(7)(31 downto 24), stream_data_fifo(7)(23 downto 16), stream_data_fifo(7)(15 downto 8), stream_data_fifo(7)(7 downto 0))
+        (stream_data_fifo(16), stream_data_fifo(17), stream_data_fifo(18), stream_data_fifo(19)),
+        (stream_data_fifo(20), stream_data_fifo(21), stream_data_fifo(22), stream_data_fifo(23)),
+        (stream_data_fifo(24), stream_data_fifo(25), stream_data_fifo(26), stream_data_fifo(27)),
+        (stream_data_fifo(28), stream_data_fifo(29), stream_data_fifo(30), stream_data_fifo(31))
     );
 
 	-- User logic ends
