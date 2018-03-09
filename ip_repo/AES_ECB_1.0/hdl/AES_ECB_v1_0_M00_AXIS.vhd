@@ -244,6 +244,14 @@ begin
 	   end process;                                                                 
 
 	-- Add user logic here
+	
+	    -- Input State
+    input_state <= (
+        (M_AXIS_INPUT_STATE(0)(0) & M_AXIS_INPUT_STATE(0)(1) & M_AXIS_INPUT_STATE(0)(2) & M_AXIS_INPUT_STATE(0)(3)),
+        (M_AXIS_INPUT_STATE(1)(0) & M_AXIS_INPUT_STATE(1)(1) & M_AXIS_INPUT_STATE(1)(2) & M_AXIS_INPUT_STATE(1)(3)),
+        (M_AXIS_INPUT_STATE(2)(0) & M_AXIS_INPUT_STATE(2)(1) & M_AXIS_INPUT_STATE(2)(2) & M_AXIS_INPUT_STATE(2)(3)),
+        (M_AXIS_INPUT_STATE(3)(0) & M_AXIS_INPUT_STATE(3)(1) & M_AXIS_INPUT_STATE(3)(2) & M_AXIS_INPUT_STATE(3)(3))
+    );
 
 	-- User logic ends
 
