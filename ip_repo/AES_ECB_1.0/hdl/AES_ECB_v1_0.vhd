@@ -211,9 +211,7 @@ AES_ECB_v1_0_S00_AXIS_inst : AES_ECB_v1_0_S00_AXIS
 	process(m00_axis_aclk)
         begin
             if (rising_edge (m00_axis_aclk)) and (m_start = '1') then
-            
-                s00_axis_tready <= m00_axis_tready;
-               
+                           
                 m00_axis_tvalid <= s00_axis_tvalid;
                 m00_axis_tdata <= m_axis_data(0);
                 m00_axis_tstrb <= s00_axis_tstrb;
