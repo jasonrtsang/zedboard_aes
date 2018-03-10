@@ -15,11 +15,10 @@ entity AES_ECB_v1_0_S00_AXIS is
 	);
 	port (
 		-- Users to add ports here
-
-		S_AXIS_INPUT_KEY : out STATE;
-        S_AXIS_INPUT_STATE : out STATE;
-        S_AXIS_INPUT_MODE : out AES_MODE;
 		
+		S_AXIS_INPUT : out WORD_FIFO_TYPE;
+		S_AXIS_FULL : out std_logic;
+
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
@@ -60,9 +59,9 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	end;    
 
 	-- Total number of input data.
-	constant NUMBER_OF_INPUT_BYTES : integer := 33;
-	-- bit_num gives the minimum number of bits needed to address 'NUMBER_OF_INPUT_BYTES' size of FIFO.
-	constant bit_num  : integer := clogb2(NUMBER_OF_INPUT_BYTES-1);
+--	constant NUMBER_OF_INPUT_WORDS  : integer := 8;
+	-- bit_num gives the minimum number of bits needed to address 'NUMBER_OF_INPUT_WORDS' size of FIFO.
+	constant bit_num  : integer := clogb2(NUMBER_OF_INPUT_WORDS-1);
 	-- Define the states of state machine
 	-- The control state machine oversees the writing of input streaming data to the FIFO,
 	-- and outputs the streaming data from the FIFO
@@ -83,16 +82,7 @@ architecture arch_imp of AES_ECB_v1_0_S00_AXIS is
 	-- sink has accepted all the streaming data and stored in FIFO
 	signal writes_done : std_logic;
 
-	type BYTE_FIFO_TYPE is array (0 to (NUMBER_OF_INPUT_BYTES-1)) of std_logic_vector(((C_S_AXIS_TDATA_WIDTH/4)-1)downto 0);
-	
-	-- Add user components here
-    
-    -- Input buffer
-    signal stream_data_fifo : BYTE_FIFO_TYPE;
-    
-    constant ZEROS : std_logic_vector(C_S_AXIS_TDATA_WIDTH-1 downto 0) := (others => '0');
-
-    -- User components ends
+    signal stream_data_fifo : WORD_FIFO_TYPE;
 
 begin
 	-- I/O Connections assignments
@@ -138,8 +128,8 @@ begin
 	-- AXI Streaming Sink 
 	-- 
 	-- The example design sink is always ready to accept the S_AXIS_TDATA  until
-	-- the FIFO is not filled with NUMBER_OF_INPUT_BYTES number of input words.
-	axis_tready <= '1' when ((mst_exec_state = WRITE_FIFO) and (write_pointer <= NUMBER_OF_INPUT_BYTES-1)) else '0';
+	-- the FIFO is not filled with NUMBER_OF_INPUT_WORDS number of input words.
+	axis_tready <= '1' when ((mst_exec_state = WRITE_FIFO) and (write_pointer <= NUMBER_OF_INPUT_WORDS-1)) else '0';
 
 	process(S_AXIS_ACLK)
 	begin
@@ -147,18 +137,21 @@ begin
 	    if(S_AXIS_ARESETN = '0') then
 	      write_pointer <= 0;
 	      writes_done <= '0';
+	      S_AXIS_FULL <= '0';
 	    else
-	      if (write_pointer <= NUMBER_OF_INPUT_BYTES-1) then
+	      if (write_pointer <= NUMBER_OF_INPUT_WORDS-1) then
 	        if (fifo_wren = '1') then
 	          -- write pointer is incremented after every write to the FIFO
 	          -- when FIFO write signal is enabled.
 	          write_pointer <= write_pointer + 1;
 	          writes_done <= '0';
+	          S_AXIS_FULL <= '0';
 	        end if;
-	        if ((write_pointer = NUMBER_OF_INPUT_BYTES-1) or S_AXIS_TLAST = '1') then
-	          -- reads_done is asserted when NUMBER_OF_INPUT_BYTES numbers of streaming data 
+	        if ((write_pointer = NUMBER_OF_INPUT_WORDS-1) or S_AXIS_TLAST = '1') then
+	          -- reads_done is asserted when NUMBER_OF_INPUT_WORDS numbers of streaming data 
 	          -- has been written to the FIFO which is also marked by S_AXIS_TLAST(kept for optional usage).
 	          writes_done <= '1';
+	          S_AXIS_FULL <= '1';
 	        end if;
 	      end  if;
 	    end if;
@@ -169,43 +162,21 @@ begin
 	fifo_wren <= S_AXIS_TVALID and axis_tready;
 
 	-- FIFO Implementation
-	 FIFO_GEN: for byte_index in 0 to (C_S_AXIS_TDATA_WIDTH/8-1) generate
+      -- Streaming input data is stored in FIFO
+      process(S_AXIS_ACLK)
+      begin
+        if (rising_edge (S_AXIS_ACLK)) then
+          if (fifo_wren = '1') then
+            stream_data_fifo(write_pointer) <= S_AXIS_TDATA;
+          end if;  
+        end  if;
+      end process;
 
-	 begin   
-	  -- Streaming input data is stored in FIFO
-	  process(S_AXIS_ACLK)
-	  begin
-	    if (rising_edge (S_AXIS_ACLK)) then
-	      if (fifo_wren = '1') then
-	        stream_data_fifo(write_pointer) <= S_AXIS_TDATA((byte_index*8+7) downto (byte_index*8));
-	      end if;  
-	    end  if;
-	  end process;
-
-	end generate FIFO_GEN;
 
 	-- Add user logic here
+	
+	S_AXIS_INPUT <= stream_data_fifo;
 
-	-- Input Round Key
-    S_AXIS_INPUT_KEY <= (
-        (stream_data_fifo(0),  stream_data_fifo(1),  stream_data_fifo(2),  stream_data_fifo(3)),
-        (stream_data_fifo(4),  stream_data_fifo(5),  stream_data_fifo(6),  stream_data_fifo(7)),
-        (stream_data_fifo(8),  stream_data_fifo(9),  stream_data_fifo(10), stream_data_fifo(11)),
-        (stream_data_fifo(12), stream_data_fifo(13), stream_data_fifo(14), stream_data_fifo(15))
-    );
-    
-    -- Input State
-    S_AXIS_INPUT_STATE <= (
-        (stream_data_fifo(16), stream_data_fifo(17), stream_data_fifo(18), stream_data_fifo(19)),
-        (stream_data_fifo(20), stream_data_fifo(21), stream_data_fifo(22), stream_data_fifo(23)),
-        (stream_data_fifo(24), stream_data_fifo(25), stream_data_fifo(26), stream_data_fifo(27)),
-        (stream_data_fifo(28), stream_data_fifo(29), stream_data_fifo(30), stream_data_fifo(31))
-    );
-    
-    -- Encryption or Decryption
-
-    S_AXIS_INPUT_MODE <= ENCRYPTION when (stream_data_fifo(32) = ZEROS) else DECRYPTION;
-    
 	-- User logic ends
 
 end arch_imp;

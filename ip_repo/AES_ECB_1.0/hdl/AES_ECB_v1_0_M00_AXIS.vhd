@@ -1,7 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.aes_package.all;
 
 entity AES_ECB_v1_0_M00_AXIS is
 	generic (
@@ -17,8 +16,6 @@ entity AES_ECB_v1_0_M00_AXIS is
 	);
 	port (
 		-- Users to add ports here
-
-        M_AXIS_INPUT_STATE : in STATE;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -42,7 +39,7 @@ end AES_ECB_v1_0_M00_AXIS;
 
 architecture implementation of AES_ECB_v1_0_M00_AXIS is
 	-- Total number of output data                                              
-	constant NUMBER_OF_OUTPUT_WORDS : integer := 4;                                   
+	constant NUMBER_OF_OUTPUT_WORDS : integer := 8;                                   
 
 	 -- function called clogb2 that returns an integer which has the   
 	 -- value of the ceiling of the log base 2.                              
@@ -106,13 +103,6 @@ architecture implementation of AES_ECB_v1_0_M00_AXIS is
 	--The master has issued all the streaming data stored in FIFO
 	signal tx_done	: std_logic;
 
-	-- Add user components here
-    
-    -- Output buffer
-    type WORD_FIFO_TYPE is array (0 to (NUMBER_OF_OUTPUT_WORDS-1)) of std_logic_vector((C_M_AXIS_TDATA_WIDTH-1) downto 0);
-    signal input_state : WORD_FIFO_TYPE;
-    
-    -- User components ends
 
 begin
 	-- I/O Connections assignments
@@ -238,20 +228,12 @@ begin
 	      if(M_AXIS_ARESETN = '0') then                                             
 	    	stream_data_out <= std_logic_vector(to_unsigned(sig_one,C_M_AXIS_TDATA_WIDTH));  
 	      elsif (tx_en = '1') then -- && M_AXIS_TSTRB(byte_index)                   
-	        stream_data_out <= input_state(read_pointer);
+	        stream_data_out <= std_logic_vector( to_unsigned(read_pointer,C_M_AXIS_TDATA_WIDTH) + to_unsigned(sig_one,C_M_AXIS_TDATA_WIDTH));
 	      end if;                                                                   
 	     end if;                                                                    
 	   end process;                                                                 
 
 	-- Add user logic here
-	
-	    -- Input State
-    input_state <= (
-        (M_AXIS_INPUT_STATE(0)(0) & M_AXIS_INPUT_STATE(0)(1) & M_AXIS_INPUT_STATE(0)(2) & M_AXIS_INPUT_STATE(0)(3)),
-        (M_AXIS_INPUT_STATE(1)(0) & M_AXIS_INPUT_STATE(1)(1) & M_AXIS_INPUT_STATE(1)(2) & M_AXIS_INPUT_STATE(1)(3)),
-        (M_AXIS_INPUT_STATE(2)(0) & M_AXIS_INPUT_STATE(2)(1) & M_AXIS_INPUT_STATE(2)(2) & M_AXIS_INPUT_STATE(2)(3)),
-        (M_AXIS_INPUT_STATE(3)(0) & M_AXIS_INPUT_STATE(3)(1) & M_AXIS_INPUT_STATE(3)(2) & M_AXIS_INPUT_STATE(3)(3))
-    );
 
 	-- User logic ends
 

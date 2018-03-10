@@ -11,6 +11,10 @@ entity AES_ECB_v1_0 is
 		-- Do not modify the parameters beyond this line
 
 
+		-- Parameters of Axi Slave Bus Interface S00_AXI
+		C_S00_AXI_DATA_WIDTH	: integer	:= 32;
+		C_S00_AXI_ADDR_WIDTH	: integer	:= 4;
+
 		-- Parameters of Axi Slave Bus Interface S00_AXIS
 		C_S00_AXIS_TDATA_WIDTH	: integer	:= 32;
 
@@ -24,6 +28,29 @@ entity AES_ECB_v1_0 is
 		-- User ports ends
 		-- Do not modify the ports beyond this line
 
+
+		-- Ports of Axi Slave Bus Interface S00_AXI
+		s00_axi_aclk	: in std_logic;
+		s00_axi_aresetn	: in std_logic;
+		s00_axi_awaddr	: in std_logic_vector(C_S00_AXI_ADDR_WIDTH-1 downto 0);
+		s00_axi_awprot	: in std_logic_vector(2 downto 0);
+		s00_axi_awvalid	: in std_logic;
+		s00_axi_awready	: out std_logic;
+		s00_axi_wdata	: in std_logic_vector(C_S00_AXI_DATA_WIDTH-1 downto 0);
+		s00_axi_wstrb	: in std_logic_vector((C_S00_AXI_DATA_WIDTH/8)-1 downto 0);
+		s00_axi_wvalid	: in std_logic;
+		s00_axi_wready	: out std_logic;
+		s00_axi_bresp	: out std_logic_vector(1 downto 0);
+		s00_axi_bvalid	: out std_logic;
+		s00_axi_bready	: in std_logic;
+		s00_axi_araddr	: in std_logic_vector(C_S00_AXI_ADDR_WIDTH-1 downto 0);
+		s00_axi_arprot	: in std_logic_vector(2 downto 0);
+		s00_axi_arvalid	: in std_logic;
+		s00_axi_arready	: out std_logic;
+		s00_axi_rdata	: out std_logic_vector(C_S00_AXI_DATA_WIDTH-1 downto 0);
+		s00_axi_rresp	: out std_logic_vector(1 downto 0);
+		s00_axi_rvalid	: out std_logic;
+		s00_axi_rready	: in std_logic;
 
 		-- Ports of Axi Slave Bus Interface S00_AXIS
 		s00_axis_aclk	: in std_logic;
@@ -47,17 +74,44 @@ end AES_ECB_v1_0;
 
 architecture arch_imp of AES_ECB_v1_0 is
 
-	-- component declaration
+--	-- component declaration
+--	component AES_ECB_v1_0_S00_AXI is
+--		generic (
+--		C_S_AXI_DATA_WIDTH	: integer	:= 32;
+--		C_S_AXI_ADDR_WIDTH	: integer	:= 4
+--		);
+--		port (
+--		S_AXI_ACLK	: in std_logic;
+--		S_AXI_ARESETN	: in std_logic;
+--		S_AXI_AWADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+--		S_AXI_AWPROT	: in std_logic_vector(2 downto 0);
+--		S_AXI_AWVALID	: in std_logic;
+--		S_AXI_AWREADY	: out std_logic;
+--		S_AXI_WDATA	: in std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+--		S_AXI_WSTRB	: in std_logic_vector((C_S_AXI_DATA_WIDTH/8)-1 downto 0);
+--		S_AXI_WVALID	: in std_logic;
+--		S_AXI_WREADY	: out std_logic;
+--		S_AXI_BRESP	: out std_logic_vector(1 downto 0);
+--		S_AXI_BVALID	: out std_logic;
+--		S_AXI_BREADY	: in std_logic;
+--		S_AXI_ARADDR	: in std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+--		S_AXI_ARPROT	: in std_logic_vector(2 downto 0);
+--		S_AXI_ARVALID	: in std_logic;
+--		S_AXI_ARREADY	: out std_logic;
+--		S_AXI_RDATA	: out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+--		S_AXI_RRESP	: out std_logic_vector(1 downto 0);
+--		S_AXI_RVALID	: out std_logic;
+--		S_AXI_RREADY	: in std_logic
+--		);
+--	end component AES_ECB_v1_0_S00_AXI;
+
 	component AES_ECB_v1_0_S00_AXIS is
 		generic (
 		C_S_AXIS_TDATA_WIDTH	: integer	:= 32
 		);
 		port (
-		-- User ports
-		S_AXIS_INPUT_KEY : out STATE;
-        S_AXIS_INPUT_STATE : out STATE;
-        S_AXIS_INPUT_MODE : out AES_MODE;
-        -- User ports end
+		S_AXIS_INPUT : out WORD_FIFO_TYPE;
+		S_AXIS_FULL : out std_logic;
 		S_AXIS_ACLK	: in std_logic;
 		S_AXIS_ARESETN	: in std_logic;
 		S_AXIS_TREADY	: out std_logic;
@@ -68,43 +122,56 @@ architecture arch_imp of AES_ECB_v1_0 is
 		);
 	end component AES_ECB_v1_0_S00_AXIS;
 
-	component AES_ECB_v1_0_M00_AXIS is
-		generic (
-		C_M_AXIS_TDATA_WIDTH	: integer	:= 32;
-		C_M_START_COUNT	: integer	:= 32
-		);
-		port (
-		-- User ports
-        M_AXIS_INPUT_STATE : in STATE;
-        -- User ports end
-		M_AXIS_ACLK	: in std_logic;
-		M_AXIS_ARESETN	: in std_logic;
-		M_AXIS_TVALID	: out std_logic;
-		M_AXIS_TDATA	: out std_logic_vector(C_M_AXIS_TDATA_WIDTH-1 downto 0);
-		M_AXIS_TSTRB	: out std_logic_vector((C_M_AXIS_TDATA_WIDTH/8)-1 downto 0);
-		M_AXIS_TLAST	: out std_logic;
-		M_AXIS_TREADY	: in std_logic
-		);
-	end component AES_ECB_v1_0_M00_AXIS;
+--	component AES_ECB_v1_0_M00_AXIS is
+--		generic (
+--		C_M_AXIS_TDATA_WIDTH	: integer	:= 32;
+--		C_M_START_COUNT	: integer	:= 32
+--		);
+--		port (
+--		M_AXIS_ACLK	: in std_logic;
+--		M_AXIS_ARESETN	: in std_logic;
+--		M_AXIS_TVALID	: out std_logic;
+--		M_AXIS_TDATA	: out std_logic_vector(C_M_AXIS_TDATA_WIDTH-1 downto 0);
+--		M_AXIS_TSTRB	: out std_logic_vector((C_M_AXIS_TDATA_WIDTH/8)-1 downto 0);
+--		M_AXIS_TLAST	: out std_logic;
+--		M_AXIS_TREADY	: in std_logic
+--		);
+--	end component AES_ECB_v1_0_M00_AXIS;
 	
-	-- Add user components here
-    
-    component main_ecb is
-        port (inMode   : in AES_MODE;
-              inKey    : in STATE;
-              inState  : in STATE;
-              outState : out STATE);        
-    end component main_ecb;
-    
-    signal s00_axis_input_key : STATE;
-    signal s00_axis_input_state : STATE;
-    signal s00_axis_input_mode : AES_MODE;
-    
-    signal m00_axis_input_state : STATE;
-
-    -- User components ends
+	signal m_axis_data : WORD_FIFO_TYPE;
+	signal m_start : std_logic := '0';
 
 begin
+
+---- Instantiation of Axi Bus Interface S00_AXI
+--AES_ECB_v1_0_S00_AXI_inst : AES_ECB_v1_0_S00_AXI
+--	generic map (
+--		C_S_AXI_DATA_WIDTH	=> C_S00_AXI_DATA_WIDTH,
+--		C_S_AXI_ADDR_WIDTH	=> C_S00_AXI_ADDR_WIDTH
+--	)
+--	port map (
+--		S_AXI_ACLK	=> s00_axi_aclk,
+--		S_AXI_ARESETN	=> s00_axi_aresetn,
+--		S_AXI_AWADDR	=> s00_axi_awaddr,
+--		S_AXI_AWPROT	=> s00_axi_awprot,
+--		S_AXI_AWVALID	=> s00_axi_awvalid,
+--		S_AXI_AWREADY	=> s00_axi_awready,
+--		S_AXI_WDATA	=> s00_axi_wdata,
+--		S_AXI_WSTRB	=> s00_axi_wstrb,
+--		S_AXI_WVALID	=> s00_axi_wvalid,
+--		S_AXI_WREADY	=> s00_axi_wready,
+--		S_AXI_BRESP	=> s00_axi_bresp,
+--		S_AXI_BVALID	=> s00_axi_bvalid,
+--		S_AXI_BREADY	=> s00_axi_bready,
+--		S_AXI_ARADDR	=> s00_axi_araddr,
+--		S_AXI_ARPROT	=> s00_axi_arprot,
+--		S_AXI_ARVALID	=> s00_axi_arvalid,
+--		S_AXI_ARREADY	=> s00_axi_arready,
+--		S_AXI_RDATA	=> s00_axi_rdata,
+--		S_AXI_RRESP	=> s00_axi_rresp,
+--		S_AXI_RVALID	=> s00_axi_rvalid,
+--		S_AXI_RREADY	=> s00_axi_rready
+--	);
 
 -- Instantiation of Axi Bus Interface S00_AXIS
 AES_ECB_v1_0_S00_AXIS_inst : AES_ECB_v1_0_S00_AXIS
@@ -112,11 +179,8 @@ AES_ECB_v1_0_S00_AXIS_inst : AES_ECB_v1_0_S00_AXIS
 		C_S_AXIS_TDATA_WIDTH	=> C_S00_AXIS_TDATA_WIDTH
 	)
 	port map (
-		-- User ports
-        S_AXIS_INPUT_KEY => s00_axis_input_key,
-        S_AXIS_INPUT_STATE => s00_axis_input_state,
-        S_AXIS_INPUT_MODE => s00_axis_input_mode,
-        -- User ports end
+	    S_AXIS_INPUT => m_axis_data,
+	    S_AXIS_FULL => m_start,
 		S_AXIS_ACLK	=> s00_axis_aclk,
 		S_AXIS_ARESETN	=> s00_axis_aresetn,
 		S_AXIS_TREADY	=> s00_axis_tready,
@@ -126,36 +190,39 @@ AES_ECB_v1_0_S00_AXIS_inst : AES_ECB_v1_0_S00_AXIS
 		S_AXIS_TVALID	=> s00_axis_tvalid
 	);
 
--- Instantiation of Axi Bus Interface M00_AXIS
-AES_ECB_v1_0_M00_AXIS_inst : AES_ECB_v1_0_M00_AXIS
-	generic map (
-		C_M_AXIS_TDATA_WIDTH	=> C_M00_AXIS_TDATA_WIDTH,
-		C_M_START_COUNT	=> C_M00_AXIS_START_COUNT
-	)
-	port map (
-		-- User ports
-        M_AXIS_INPUT_STATE => m00_axis_input_state,
-        -- User ports end
-		M_AXIS_ACLK	=> m00_axis_aclk,
-		M_AXIS_ARESETN	=> m00_axis_aresetn,
-		M_AXIS_TVALID	=> m00_axis_tvalid,
-		M_AXIS_TDATA	=> m00_axis_tdata,
-		M_AXIS_TSTRB	=> m00_axis_tstrb,
-		M_AXIS_TLAST	=> m00_axis_tlast,
-		M_AXIS_TREADY	=> m00_axis_tready
-	);
+---- Instantiation of Axi Bus Interface M00_AXIS
+--AES_ECB_v1_0_M00_AXIS_inst : AES_ECB_v1_0_M00_AXIS
+--	generic map (
+--		C_M_AXIS_TDATA_WIDTH	=> C_M00_AXIS_TDATA_WIDTH,
+--		C_M_START_COUNT	=> C_M00_AXIS_START_COUNT
+--	)
+--	port map (
+--		M_AXIS_ACLK	=> m00_axis_aclk,
+--		M_AXIS_ARESETN	=> m00_axis_aresetn,
+--		M_AXIS_TVALID	=> m00_axis_tvalid,
+--		M_AXIS_TDATA	=> m00_axis_tdata,
+--		M_AXIS_TSTRB	=> m00_axis_tstrb,
+--		M_AXIS_TLAST	=> m00_axis_tlast,
+--		M_AXIS_TREADY	=> m00_axis_tready
+--	);
 
 	-- Add user logic here
 	
--- Instantiation of main ecb fifo
-    main_ecb_inst : main_ecb
-        port map (
-            inMode => s00_axis_input_mode,
-            inKey => s00_axis_input_key,
-            inState => s00_axis_input_state,
-            outState => m00_axis_input_state    
-        );
-
+	process(m00_axis_aclk)
+        begin
+            if (rising_edge (m00_axis_aclk)) and (m_start = '1') then
+            
+                s00_axis_tready <= m00_axis_tready;
+               
+                m00_axis_tvalid <= s00_axis_tvalid;
+                m00_axis_tdata <= m_axis_data(0);
+                m00_axis_tstrb <= s00_axis_tstrb;
+                m00_axis_tlast <= s00_axis_tlast;
+                
+            end if;
+      end process;
+      
+	
 	-- User logic ends
 
 end arch_imp;
