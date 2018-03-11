@@ -470,7 +470,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>ee5b8fb9</spirit:value>
+            <spirit:value>b0cd216a</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -486,7 +486,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>ee5b8fb9</spirit:value>
+            <spirit:value>b0cd216a</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -1100,7 +1100,7 @@
       <spirit:file>
         <spirit:name>hdl/AES_ECB_v1_0.vhd</spirit:name>
         <spirit:fileType>vhdlSource</spirit:fileType>
-        <spirit:userFileType>CHECKSUM_df7ddf5b</spirit:userFileType>
+        <spirit:userFileType>CHECKSUM_a4fcc14b</spirit:userFileType>
       </spirit:file>
     </spirit:fileSet>
     <spirit:fileSet>
@@ -1265,17 +1265,17 @@
         <xilinx:taxonomy>AXI_Peripheral</xilinx:taxonomy>
       </xilinx:taxonomies>
       <xilinx:displayName>AES_ECB_v1.0</xilinx:displayName>
-      <xilinx:coreRevision>3</xilinx:coreRevision>
-      <xilinx:coreCreationDateTime>2018-03-10T01:30:12Z</xilinx:coreCreationDateTime>
+      <xilinx:coreRevision>5</xilinx:coreRevision>
+      <xilinx:coreCreationDateTime>2018-03-11T05:11:54Z</xilinx:coreCreationDateTime>
       <xilinx:tags>
-        <xilinx:tag xilinx:name="sfu.ca:user:AES_ECB:1.0_ARCHIVE_LOCATION">c:/Users/jrtsang/Desktop/dma_stream/zedboard_aes/ip_repo/AES_ECB_1.0</xilinx:tag>
+        <xilinx:tag xilinx:name="sfu.ca:user:AES_ECB:1.0_ARCHIVE_LOCATION">c:/Users/jason/Desktop/zedboard_aes/ip_repo/AES_ECB_1.0</xilinx:tag>
       </xilinx:tags>
     </xilinx:coreExtensions>
     <xilinx:packagingInfo>
       <xilinx:xilinxVersion>2017.3</xilinx:xilinxVersion>
       <xilinx:checksum xilinx:scope="busInterfaces" xilinx:value="4502a2e8"/>
       <xilinx:checksum xilinx:scope="memoryMaps" xilinx:value="ed1368d5"/>
-      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="fbd80876"/>
+      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="de423bf1"/>
       <xilinx:checksum xilinx:scope="ports" xilinx:value="cbfde264"/>
       <xilinx:checksum xilinx:scope="hdlParameters" xilinx:value="2c9a5362"/>
       <xilinx:checksum xilinx:scope="parameters" xilinx:value="37f5de07"/>
