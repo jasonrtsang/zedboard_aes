@@ -297,7 +297,7 @@ static int CheckData(void)
 {
 	u8 *RxPacket;
 	int Index = 0;
-	u8 Value;
+	u32 Value;
 
 	RxPacket = (u8 *) RX_BUFFER_BASE;
 	Value = TEST_START_VALUE;

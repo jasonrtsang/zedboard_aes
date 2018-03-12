@@ -23,6 +23,8 @@ entity AES_ECB_v1_0 is
     );
     port (
         -- Users to add ports here
+        
+        m00_axis_tkeep : out std_logic_vector(3 downto 0);
 
         -- User ports ends
 
@@ -174,6 +176,8 @@ begin
    s00_axis_tready  <= '1' when state = Read_Inputs else '0';
    m00_axis_tvalid <= '1' when state = Write_Outputs else '0';
    m00_axis_tlast <= '1' when (state = Write_Outputs and nr_of_writes = 0) else '0';
+   
+   m00_axis_tkeep <= x"F";
 
    m00_axis_tdata <= std_logic_vector(unsigned(output)) when (state = Write_Outputs) else (others => '0');
 
