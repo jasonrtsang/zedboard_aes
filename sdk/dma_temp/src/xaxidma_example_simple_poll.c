@@ -108,11 +108,11 @@
 #define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
 #define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
 
-#define MAX_PKT_LEN		128
+#define MAX_PKT_LEN		16
 
 #define TEST_START_VALUE	0x1
 
-#define NUMBER_OF_TRANSFERS	10
+#define NUMBER_OF_TRANSFERS	1
 
 /**************************** Type Definitions *******************************/
 
@@ -195,7 +195,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	int Index;
 	u8 *TxBufferPtr;
 	u8 *RxBufferPtr;
-	u8 Value;
+	u32 Value;
 
 	TxBufferPtr = (u8 *)TX_BUFFER_BASE ;
 	RxBufferPtr = (u8 *)RX_BUFFER_BASE;
@@ -226,13 +226,18 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
 						XAXIDMA_DMA_TO_DEVICE);
 
+	for(Index = 0; Index < MAX_PKT_LEN; Index ++) {
+			TxBufferPtr[Index] = 0;
+			RxBufferPtr[Index] = 0;
+	}
+
 	Value = TEST_START_VALUE;
 
 	for(Index = 0; Index < MAX_PKT_LEN; Index ++) {
 			TxBufferPtr[Index] = Value;
-
 			Value = (Value + 1) & 0xFF;
 	}
+
 	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
 	 * is enabled
 	 */
