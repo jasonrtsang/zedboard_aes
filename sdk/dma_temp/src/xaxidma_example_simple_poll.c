@@ -96,16 +96,6 @@
 
 #define DMA_DEV_ID		XPAR_AXIDMA_0_DEVICE_ID
 
-#ifdef XPAR_AXI_7SDDR_0_S_AXI_BASEADDR
-#define DDR_BASE_ADDR		XPAR_AXI_7SDDR_0_S_AXI_BASEADDR
-#elif XPAR_MIG7SERIES_0_BASEADDR
-#define DDR_BASE_ADDR	XPAR_MIG7SERIES_0_BASEADDR
-#elif XPAR_MIG_0_BASEADDR
-#define DDR_BASE_ADDR	XPAR_MIG_0_BASEADDR
-#elif XPAR_PSU_DDR_0_S_AXI_BASEADDR
-#define DDR_BASE_ADDR	XPAR_PSU_DDR_0_S_AXI_BASEADDR
-#endif
-
 #ifndef DDR_BASE_ADDR
 #warning CHECK FOR THE VALID DDR ADDRESS IN XPARAMETERS.H, \
 		 DEFAULT SET TO 0x01000000
@@ -118,9 +108,9 @@
 #define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
 #define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
 
-#define MAX_PKT_LEN		0x20
+#define MAX_PKT_LEN		128
 
-#define TEST_START_VALUE	0xC
+#define TEST_START_VALUE	0x1
 
 #define NUMBER_OF_TRANSFERS	10
 
@@ -181,33 +171,6 @@ int main()
 	return XST_SUCCESS;
 
 }
-
-#if defined(XPAR_UARTNS550_0_BASEADDR)
-/*****************************************************************************/
-/*
-*
-* Uart16550 setup routine, need to set baudrate to 9600, and data bits to 8
-*
-* @param	None.
-*
-* @return	None
-*
-* @note		None.
-*
-******************************************************************************/
-static void Uart550_Setup(void)
-{
-
-	/* Set the baudrate to be predictable
-	 */
-	XUartNs550_SetBaud(XPAR_UARTNS550_0_BASEADDR,
-			XPAR_XUARTNS550_CLOCK_HZ, 9600);
-
-	XUartNs550_SetLineControlReg(XPAR_UARTNS550_0_BASEADDR,
-			XUN_LCR_8_DATA_BITS);
-
-}
-#endif
 
 /*****************************************************************************/
 /**
@@ -274,9 +237,6 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	 * is enabled
 	 */
 	Xil_DCacheFlushRange((UINTPTR)TxBufferPtr, MAX_PKT_LEN);
-#ifdef __aarch64__
-	Xil_DCacheFlushRange((UINTPTR)RxBufferPtr, MAX_PKT_LEN);
-#endif
 
 	for(Index = 0; Index < Tries; Index ++) {
 
@@ -340,9 +300,7 @@ static int CheckData(void)
 	/* Invalidate the DestBuffer before receiving the data, in case the
 	 * Data Cache is enabled
 	 */
-#ifndef __aarch64__
 	Xil_DCacheInvalidateRange((UINTPTR)RxPacket, MAX_PKT_LEN);
-#endif
 
 	for(Index = 0; Index < MAX_PKT_LEN; Index++) {
 		if (RxPacket[Index] != Value) {
