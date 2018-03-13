@@ -124,7 +124,7 @@ if {[string equal [get_filesets -quiet sources_1] ""]} {
 
 # Set IP repository paths
 set obj [get_filesets sources_1]
-set_property "ip_repo_paths" "[file normalize "$origin_dir/zedboard_aes/ip_repo/Shift_Rows_0.5"] [file normalize "$origin_dir/zedboard_aes/ip_repo/AES_ECB"] [file normalize "$origin_dir/zedboard_aes/ip_repo/Sub_Bytes_0.5"] [file normalize "$origin_dir/zedboard_aes/ip_repo/Add_Round_Key_0.5"] [file normalize "$origin_dir/zedboard_aes/ip_repo/Key_Expansion_0.5"]" $obj
+set_property "ip_repo_paths" "[file normalize "$origin_dir/ip_repo/Shift_Rows_0.5"] [file normalize "$origin_dir/ip_repo/AES_ECB"] [file normalize "$origin_dir/ip_repo/Sub_Bytes_0.5"] [file normalize "$origin_dir/ip_repo/Add_Round_Key_0.5"] [file normalize "$origin_dir/ip_repo/Key_Expansion_0.5"]" $obj
 
 # Rebuild user ip_repo's index before adding any source files
 update_ip_catalog -rebuild
