@@ -127,7 +127,7 @@ begin
 
    The_SW_accelerator : process (ACLK) is
    begin  -- process The_SW_accelerator
-    if ACLK'event and ACLK = '1' then     -- Rising clock edge
+    if rising_edge(ACLK) then     -- Rising clock edge
       if ARESETN = '0' then               -- Synchronous reset (active low)
         nr_of_reads  <= 0;
         nr_of_writes <= 0;
