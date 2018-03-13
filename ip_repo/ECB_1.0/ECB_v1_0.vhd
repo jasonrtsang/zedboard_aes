@@ -158,7 +158,7 @@ ECB_v1_0_S00_AXI_inst : ECB_v1_0_S00_AXI
     S_AXIS_TREADY  <= '1' when state = Read_Inputs else '0';
     M_AXIS_TVALID <= '1' when state = Write_Outputs else '0';
     M_AXIS_TLAST <= '1' when (state = Write_Outputs and nr_of_writes = 0) else '0';
-	M_AXIS_TDATA <= output when state = Transmit else "11111111111111111111111111111111";
+	M_AXIS_TDATA <= output;
         
     process (ACLK) is
        begin  -- process The_SW_accelerator
