@@ -145,7 +145,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
 						XAXIDMA_DMA_TO_DEVICE);
 
-	Value = 0;
+	Value = 1;
 
 	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index ++) {
 			TxBufferPtr[Index] = Value;
@@ -211,16 +211,23 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 static int CheckData(void)
 {
 	u32 *RxPacket;
+	u32 *TxPacket;
 	int Index = 0;
 
 	RxPacket = (u32 *) RX_BUFFER_BASE;
+	TxPacket = (u32 *) TX_BUFFER_BASE;
 
 	/* Invalidate the DestBuffer before receiving the data, in case the
 	 * Data Cache is enabled
 	 */
 	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN);
 
-	xil_printf("Data received: ");
+	xil_printf("Data sent: \r\n");
+	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index++) {
+		xil_printf("0x%X ", (unsigned int)TxPacket[Index]);
+	}
+	xil_printf("\r\n");
+	xil_printf("Data received: \r\n");
 	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index++) {
 		xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
 	}
