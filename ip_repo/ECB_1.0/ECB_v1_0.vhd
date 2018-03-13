@@ -157,8 +157,7 @@ ECB_v1_0_S00_AXI_inst : ECB_v1_0_S00_AXI
 	
     S_AXIS_TREADY  <= '1' when state = Read_Inputs else '0';
     M_AXIS_TVALID <= '1' when state = Write_Outputs else '0';
-    M_AXIS_TLAST <= '1' when (state = Write_Outputs and nr_of_writes = 0) else '0';
-	M_AXIS_TDATA <= output;
+    M_AXIS_TLAST <= '1' when (state = Write_Outputs and nr_of_writes = 1) else '0';
         
     process (ACLK) is
        begin  -- process The_SW_accelerator
@@ -179,22 +178,19 @@ ECB_v1_0_S00_AXI_inst : ECB_v1_0_S00_AXI
                 end if;
     
               when Read_Inputs =>
-                if (S_AXIS_TVALID = '1') then
-                  input_mem(nr_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
+                  input_mem(nr_of_reads) <= S_AXIS_TDATA;
                   if (nr_of_reads = 0) then
                     state        <= Computing;
                     nr_of_computes <= NUMBER_OF_COMPUTATION;
                   else
                     nr_of_reads <= nr_of_reads - 1;
                   end if;
-                end if;
                 
               when Computing =>
                 if (nr_of_computes = 0) then
                   state        <= Write_Outputs;
                   nr_of_writes <= NUMBER_OF_OUTPUT_WORDS;
                 else
-                    --enable <= '1';
                     case nr_of_computes is
                         when 4 =>
                             state <= Assemble;
@@ -209,24 +205,14 @@ ECB_v1_0_S00_AXI_inst : ECB_v1_0_S00_AXI
                             state <= Assemble;
                             input <= input_mem(0);
                         when others =>
-                            --enable <= '0';
                             state <= Idle;
                         end case;
                   end if;
                   
               when Assemble =>
-                --enable <= '0';
-                --if valid = '1' then
-                    output_mem(nr_of_computes) <= input;
-                    state <= Computing;
-                    nr_of_computes <= nr_of_computes - 1;
-                --else
-                    --state <= Assemble;
-                --end if;
-                
-              when Transmit =>
-                  state <= Write_Outputs;
-                  nr_of_writes <= nr_of_writes - 1;
+                state <= Computing;
+                output_mem(nr_of_computes) <= input;
+                nr_of_computes <= nr_of_computes - 1;
                     
               when Write_Outputs =>
                 if (M_AXIS_TREADY = '1') then
@@ -238,19 +224,25 @@ ECB_v1_0_S00_AXI_inst : ECB_v1_0_S00_AXI
                           state <= Transmit;
                           output <= output_mem(1);
                       when 3 =>
-                          state <= Transmit;
+                            state <= Transmit;
                           output <= output_mem(2);
                       when 2 =>
-                          state <= Transmit;
+                            state <= Transmit;
                           output <= output_mem(3);
                       when 1 =>
-                          state <= Transmit;
+                            state <= Transmit;
                           output <= output_mem(4);
                       when others =>
                           state <= Idle;
                       end case;
                   end if;
                 end if;
+                
+               when Transmit =>
+                  state <= Write_Outputs;
+                  M_AXIS_TDATA <= output;
+                  nr_of_writes <= nr_of_writes - 1;
+
             end case;
           end if;
         end if;
