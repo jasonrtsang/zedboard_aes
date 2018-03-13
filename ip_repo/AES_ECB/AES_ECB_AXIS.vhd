@@ -99,7 +99,7 @@ architecture arch_imp of AES_ECB_AXIS is
    signal state        : STATE_TYPE;
 
    -- Accumulator to hold sum of inputs read at any point in time
-   signal sum          : std_logic_vector(31 downto 0);
+--   signal sum          : std_logic_vector(31 downto 0);
 
    -- Counters to store the number inputs read & outputs written
    signal nr_of_reads  : natural range 0 to NUMBER_OF_INPUT_WORDS - 1;
@@ -121,47 +121,36 @@ begin
    -- consistent with the sequence they are written and read in the
    -- driver's axi_stream_generator.c file
 
-   -- S_AXIS_TREADY  <= '1'   when state = Read_Inputs   else '0';
    S_AXIS_TREADY  <= '0' when state = Write_Outputs else '1';
    M_AXIS_TVALID <= '1' when state = Write_Outputs else '0';
-
---   M_AXIS_TDATA <= sum;
---   M_AXIS_TDATA <= output_mem(nr_of_writes);
---   M_AXIS_TDATA <= input_mem(nr_of_writes);
    M_AXIS_TLAST <= tlast;
 
    The_SW_accelerator : process (ACLK) is
    begin  -- process The_SW_accelerator
     if ACLK'event and ACLK = '1' then     -- Rising clock edge
       if ARESETN = '0' then               -- Synchronous reset (active low)
-        -- CAUTION: make sure your reset polarity is consistent with the
-        -- system reset polarity
-        state        <= Idle;
         nr_of_reads  <= 0;
         nr_of_writes <= 0;
---        sum          <= (others => '0');
         input_mem <= ((others=> (others=>'0')));
         output_mem <= ((others=> (others=>'0')));
         tlast        <= '0';
+        state        <= Idle;
       else
         case state is
           when Idle =>
             if (S_AXIS_TVALID = '1') then
-              state       <= Read_Inputs;
               nr_of_reads <= NUMBER_OF_INPUT_WORDS - 1;
---              sum         <= (others => '0');
+              nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
               input_mem <= ((others=> (others=>'0')));
               output_mem <= ((others=> (others=>'0')));
+              state       <= Read_Inputs;
             end if;
 
           when Read_Inputs =>
             if (S_AXIS_TVALID = '1') then
-              -- Coprocessor function (Adding) happens here
               input_mem(nr_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
---              sum         <= std_logic_vector(unsigned(sum) + unsigned(S_AXIS_TDATA));
-              if (S_AXIS_TLAST = '1') then
+              if (S_AXIS_TLAST = '1' or nr_of_reads = 0) then
                 state        <= Write_Outputs;
-                nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
               else
                 nr_of_reads <= nr_of_reads - 1;
               end if;
@@ -170,15 +159,14 @@ begin
           when Write_Outputs =>
             if (M_AXIS_TREADY = '1') then
               if (nr_of_writes = 0) then
-                state <= Idle;
                 tlast <= '0';
+                state <= Idle;
               else
+                M_AXIS_TDATA <= input_mem(nr_of_writes);
                 -- assert TLAST on last transmitted word
                 if (nr_of_writes = 1) then
                   tlast <= '1';
                 end if;
---                output_mem(nr_of_writes) <= input_mem(nr_of_writes);
-                M_AXIS_TDATA <= input_mem(nr_of_writes);
                 nr_of_writes <= nr_of_writes - 1;
               end if;
             end if;
