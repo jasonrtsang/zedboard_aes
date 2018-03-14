@@ -54,18 +54,18 @@ architecture arch_imp of AES_ECB_AXIS is
 
     -- Counters to store the number inputs/ outputs written
     signal num_of_reads   : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
-    signal num_of_writes  : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
     signal num_of_process : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
+    signal num_of_writes  : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
 
     -- Master last and output signals
     signal tlast     : std_logic;
     signal tdata_out : std_logic_vector(31 downto 0);
 
     -- Input/ output buffers
-    type OUT_ARRAY is array (0 to NUMBER_OF_OUTPUT_WORDS-1) of std_logic_vector(31 downto 0);
     type IN_ARRAY  is array (0 to NUMBER_OF_INPUT_WORDS-1)  of std_logic_vector(31 downto 0);
-    signal out_buff : OUT_ARRAY := ((others=> (others=>'0')));
+    type OUT_ARRAY is array (0 to NUMBER_OF_OUTPUT_WORDS-1) of std_logic_vector(31 downto 0);
     signal in_buff  : IN_ARRAY  := ((others=> (others=>'0')));
+    signal out_buff : OUT_ARRAY := ((others=> (others=>'0')));
 
     -- Mode, states and roundkey
     signal aes_mode : AES_MODE;
@@ -73,6 +73,7 @@ architecture arch_imp of AES_ECB_AXIS is
     signal inKey    : STATE;
     signal outState : STATE;
     
+    -- Converting aes_mode back to 32-bit for testing
     signal outMode : std_logic_vector(31 downto 0);
 
 begin
@@ -83,26 +84,31 @@ begin
     M_AXIS_TDATA  <= tdata_out when axis_state = Write_Outputs else ZEROS;
     M_AXIS_TLAST  <= tlast;
     
-    aes_mode <= ENCRYPTION when (in_buff(8) = ZEROS) else DECRYPTION;
+    -- Signal assignments to buffers
+    -- First packet is aes mode
+    aes_mode <= ENCRYPTION when (in_buff(0) = ZEROS) else DECRYPTION;
+    -- Packets 2-5 for state
     inState <= (
-        (in_buff(7)(31 downto 24), in_buff(7)(23 downto 16), in_buff(7)(15 downto 8), in_buff(7)(7 downto 0)),
-        (in_buff(6)(31 downto 24), in_buff(6)(23 downto 16), in_buff(6)(15 downto 8), in_buff(6)(7 downto 0)),
-        (in_buff(5)(31 downto 24), in_buff(5)(23 downto 16), in_buff(5)(15 downto 8), in_buff(5)(7 downto 0)),
-        (in_buff(4)(31 downto 24), in_buff(4)(23 downto 16), in_buff(4)(15 downto 8), in_buff(4)(7 downto 0)));
-    inKey <= (
-        (in_buff(3)(31 downto 24), in_buff(3)(23 downto 16), in_buff(3)(15 downto 8), in_buff(3)(7 downto 0)),
-        (in_buff(2)(31 downto 24), in_buff(2)(23 downto 16), in_buff(2)(15 downto 8), in_buff(2)(7 downto 0)),
         (in_buff(1)(31 downto 24), in_buff(1)(23 downto 16), in_buff(1)(15 downto 8), in_buff(1)(7 downto 0)),
-        (in_buff(0)(31 downto 24), in_buff(0)(23 downto 16), in_buff(0)(15 downto 8), in_buff(0)(7 downto 0)));
+        (in_buff(2)(31 downto 24), in_buff(2)(23 downto 16), in_buff(2)(15 downto 8), in_buff(2)(7 downto 0)),
+        (in_buff(3)(31 downto 24), in_buff(3)(23 downto 16), in_buff(3)(15 downto 8), in_buff(3)(7 downto 0)),
+        (in_buff(4)(31 downto 24), in_buff(4)(23 downto 16), in_buff(4)(15 downto 8), in_buff(4)(7 downto 0)));
+    -- Packets 6-9 for round keys
+    inKey <= (
+        (in_buff(5)(31 downto 24), in_buff(5)(23 downto 16), in_buff(5)(15 downto 8), in_buff(5)(7 downto 0)),
+        (in_buff(6)(31 downto 24), in_buff(6)(23 downto 16), in_buff(6)(15 downto 8), in_buff(6)(7 downto 0)),
+        (in_buff(7)(31 downto 24), in_buff(7)(23 downto 16), in_buff(7)(15 downto 8), in_buff(7)(7 downto 0)),
+        (in_buff(8)(31 downto 24), in_buff(8)(23 downto 16), in_buff(8)(15 downto 8), in_buff(8)(7 downto 0)));
 
+    -- Convert aes_mode back to std_logic_vector
     outMode <= ZEROS when (aes_mode = ENCRYPTION) else ONES;
 
     state_machine : process (ACLK) is
     begin
     if rising_edge(ACLK) then
         if ARESETN = '0' then
-            num_of_reads   <= 0;
-            num_of_writes  <= 0;
+            num_of_reads   <= NUMBER_OF_INPUT_WORDS-1;
+            num_of_writes  <= NUMBER_OF_OUTPUT_WORDS-1;
             num_of_process <= NUMBER_OF_INPUT_WORDS-1;
             in_buff        <= ((others=> (others=>'0')));
             out_buff       <= ((others=> (others=>'0')));
@@ -113,21 +119,21 @@ begin
                 when Idle =>
                     if (S_AXIS_TVALID = '1') then
                         -- Capture first packet, as it will be lost in next cycle
-                        in_buff(NUMBER_OF_INPUT_WORDS-1) <= std_logic_vector(unsigned(S_AXIS_TDATA));
-                        -- Start extra 1 less
-                        num_of_reads <= NUMBER_OF_INPUT_WORDS-2;
+                        in_buff(0) <= std_logic_vector(unsigned(S_AXIS_TDATA));
+                        -- Start extra 1 forward
+                        num_of_reads <= 1;
                         axis_state <= Read_Inputs;
                     end if;
 
                 when Read_Inputs =>
                     in_buff(num_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
                     -- Last packet or input buffer is full, else loop input S_AXIS_TDATA
-                    if (S_AXIS_TLAST = '1' or num_of_reads = 0) then
+                    if (S_AXIS_TLAST = '1' or num_of_reads = NUMBER_OF_INPUT_WORDS-1) then
                         -- Set starting address for output buffer
                         num_of_process <= 0;
                         axis_state <= Processing;
                     else
-                        num_of_reads <= num_of_reads-1;
+                        num_of_reads <= num_of_reads+1;
                     end if;
 
                 when Processing =>
@@ -137,7 +143,7 @@ begin
                     -- Technically only need 4 output words for the output state
                     -- ***
 
-                    -- Just copy input to output buffer (could reuse in_buff?)
+                    -- Just copy input to states, then to output buffers, assuming processing is done at port map
                     if (num_of_process = 0) then
                         out_buff(num_of_process) <= outMode;
                         num_of_process <= num_of_process+1;
@@ -149,7 +155,7 @@ begin
                         num_of_process <= num_of_process+1;
                     elsif (num_of_process = 8) then
                         out_buff(num_of_process) <= inKey(3)(0) & inKey(3)(1) & inKey(3)(2) & inKey(3)(3);
-                        num_of_writes <= NUMBER_OF_OUTPUT_WORDS-1;
+                        num_of_writes <= 0;
                         axis_state <= Send_Outputs;
                     else
                         axis_state <= Idle;
@@ -163,15 +169,15 @@ begin
                 when Write_Outputs =>
                     if (M_AXIS_TREADY = '1') then
                         -- Signal DMA last packet
-                        if (num_of_writes = 0) then
+                        if (num_of_writes = NUMBER_OF_OUTPUT_WORDS-1) then
                             tlast <= '0';
                             axis_state <= Idle;
                         else
                             -- Toggle TLAST on last transmitted word
-                            if (num_of_writes = 1) then
+                            if (num_of_writes = NUMBER_OF_OUTPUT_WORDS-2) then
                                 tlast <= '1';
                             end if;
-                            num_of_writes <= num_of_writes-1;
+                            num_of_writes <= num_of_writes+1;
                             axis_state <= Send_Outputs;
                         end if;
                     end if;

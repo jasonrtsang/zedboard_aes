@@ -109,7 +109,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
 						XAXIDMA_DMA_TO_DEVICE);
 
-	Value = 1;
+	Value = 0;
 
 	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index ++) {
 			TxBufferPtr[Index] = Value;
