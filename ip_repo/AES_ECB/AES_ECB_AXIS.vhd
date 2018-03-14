@@ -144,9 +144,6 @@ begin
           when Idle =>
             if (S_AXIS_TVALID = '1') then
               nr_of_reads <= NUMBER_OF_INPUT_WORDS - 2;
-              nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
-              -- input_mem <= ((others=> (others=>'0')));
-              -- output_mem <= ((others=> (others=>'0')));
 			  input_mem(NUMBER_OF_INPUT_WORDS - 1) <= std_logic_vector(unsigned(S_AXIS_TDATA));
               state       <= Read_Inputs;
             end if;
@@ -155,6 +152,7 @@ begin
             if (S_AXIS_TVALID = '1') then
               input_mem(nr_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
               if (S_AXIS_TLAST = '1' or nr_of_reads = 0) then
+                nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
                 state        <= Processing;
               else
                 nr_of_reads <= nr_of_reads - 1;
