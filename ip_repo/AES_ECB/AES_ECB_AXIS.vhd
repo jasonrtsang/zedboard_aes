@@ -143,10 +143,11 @@ begin
         case state is
           when Idle =>
             if (S_AXIS_TVALID = '1') then
-              nr_of_reads <= NUMBER_OF_INPUT_WORDS - 1;
+              nr_of_reads <= NUMBER_OF_INPUT_WORDS - 2;
               nr_of_writes <= NUMBER_OF_OUTPUT_WORDS - 1;
-              input_mem <= ((others=> (others=>'0')));
-              output_mem <= ((others=> (others=>'0')));
+              -- input_mem <= ((others=> (others=>'0')));
+              -- output_mem <= ((others=> (others=>'0')));
+			  input_mem(NUMBER_OF_INPUT_WORDS - 1) <= std_logic_vector(unsigned(S_AXIS_TDATA));
               state       <= Read_Inputs;
             end if;
 
