@@ -48,12 +48,13 @@ architecture arch_imp of AES_ECB_AXIS is
    constant zeros : std_logic_vector(31 downto 0) := (others=>'0');
 
    -- AXIS states
-   type STATE_TYPE is (Idle, Read_Inputs, Processing, Write_Outputs);
+   type STATE_TYPE is (Idle, Read_Inputs, Processing, Send_Outputs, Write_Outputs);
    signal state : STATE_TYPE;
 
    -- Counters to store the number inputs/ outputs written
-   signal num_of_reads  : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
-   signal num_of_writes : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
+   signal num_of_reads   : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
+   signal num_of_writes  : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
+   signal num_of_process : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
 
    -- Master last and output signals
    signal tlast     : std_logic;
@@ -78,12 +79,13 @@ begin
     begin
     if rising_edge(ACLK) then
         if ARESETN = '0' then
-            num_of_reads  <= 0;
-            num_of_writes <= 0;
-            in_buff       <= ((others=> (others=>'0')));
-            out_buff      <= ((others=> (others=>'0')));
-            tlast         <= '0';
-            state         <= Idle;
+            num_of_reads   <= 0;
+            num_of_writes  <= 0;
+            num_of_process <= 0;
+            in_buff        <= ((others=> (others=>'0')));
+            out_buff       <= ((others=> (others=>'0')));
+            tlast          <= '0';
+            state          <= Idle;
         else
             case state is
                 when Idle =>
@@ -96,26 +98,38 @@ begin
                     end if;
 
                 when Read_Inputs =>
-                    if (S_AXIS_TVALID = '1') then
-                        in_buff(num_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
-                        -- Last packet or input buffer is full, else loop input S_AXIS_TDATA
-                        if (S_AXIS_TLAST = '1' or num_of_reads = 0) then
-                            -- Set starting address for output buffer
-                            num_of_writes <= NUMBER_OF_OUTPUT_WORDS-1;
-                            state <= Processing;
-                        else
-                            num_of_reads <= num_of_reads-1;
-                        end if;
+                    in_buff(num_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
+                    -- Last packet or input buffer is full, else loop input S_AXIS_TDATA
+                    if (S_AXIS_TLAST = '1' or num_of_reads = 0) then
+                        -- Set starting address for output buffer
+                        num_of_process <= NUMBER_OF_INPUT_WORDS-1;
+                        state <= Processing;
+                    else
+                        num_of_reads <= num_of_reads-1;
                     end if;
 
                 when Processing =>
-                    -- *** Inject ECB IP connection here ***
-                    -- Toggle between Sending and Write Outputs
-                    tdata_out <= in_buff(num_of_writes);
+                    -- *** 
+                    -- Inject ECB IP connection here
+                    -- ***
+
+                    -- Just copy input to output buffer (could reuse in_buff?)
+                    out_buff(num_of_process) <= in_buff(num_of_process);
+                    if (num_of_process = 0) then
+                        num_of_writes <= NUMBER_OF_OUTPUT_WORDS-1;
+                        state <= Send_Outputs;
+                    else
+                        num_of_process <= num_of_process-1;
+                    end if;
+
+                when Send_Outputs =>
+                    -- Send packet out of master to DMA
+                    tdata_out <= out_buff(num_of_writes);
                     state <= Write_Outputs;
 
                 when Write_Outputs =>
                     if (M_AXIS_TREADY = '1') then
+                        -- Signal DMA last packet
                         if (num_of_writes = 0) then
                             tlast <= '0';
                             state <= Idle;
@@ -125,7 +139,7 @@ begin
                                 tlast <= '1';
                             end if;
                             num_of_writes <= num_of_writes-1;
-                            state <= Processing;
+                            state <= Send_Outputs;
                         end if;
                     end if;
             end case;
