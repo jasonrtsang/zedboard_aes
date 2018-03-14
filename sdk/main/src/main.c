@@ -42,11 +42,6 @@ bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 #define TESTBIN_SIZE_64 64
 static FIL fil; // Specified file input
 
-#if defined(MILESTONE2) || defined(MILESTONE3)
-#define ENCRYPTION 0
-#define DECRYPTION 1
-#endif // MILESTONE2 || MILESTONE3
-
 /*****************************************************************************
 *
 * Main function
@@ -86,22 +81,49 @@ int main(void)
     init_platform();
 
 #ifdef MILESTONE5
-    XGpio gpioLED;
-    XGpio gpioSWITCHES;
+    XGpio gpioSwitches;
+    XGpio gpioLeds;
 
-    // Initialise the peripherals
-    XGpio_Initialize(&gpioLED, XPAR_LEDS_4BIT_DEVICE_ID);
-    XGpio_Initialize(&gpioSWITCHES, XPAR_SWITCHES_8BIT_DEVICE_ID);
+	uint8_t dipValue;
+	int switch_count;
+	int test_mask;
 
-    // Set the LED peripheral to outputs
-    XGpio_SetDataDirection(&gpioLED, 1, 0x00000000);
+	// Lookup the config information and store it in the struct "GPIO_Config"
+//	gpioSwLed_Config = XGpio_LookupConfig(XPAR_SW_LED_GPIO_AXI_DEVICE_ID);
+
+	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) { // AXI GPIO
+	        printf("UH OH: GPIO SW0 initialization failed\r\n");
+	};
+	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) { // AXI GPIO
+	        printf("UH OH: GPIO SW0 initialization failed\r\n");
+	};
+
+	// Set the direction of the bits in the GPIO.
+	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs).
+	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
+	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
+	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
     uint8_t switchKey[16];
 #endif // MILESTONE5
 
 
+
     /* Main application */
     while(!exitFlag) {
+
+
+    	// Go around in a loop for ever
+		while (1)
+		{
+			// Read from the GPIO to determine the position of the DIP switches
+			dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
+			// Write the value back to the LEDS
+			XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
+		}
+
+
+
         printf("\r\n\r\n");
         printf("~~~~~~~~~~~~~~~~ AES Encryption/ Decryption ~~~~~~~~~~~~~~~\r\n");
         printf(" SELECT the operation from the below menu \r\n");
@@ -260,27 +282,9 @@ int main(void)
 
 #ifdef MILESTONE5
 
-                    // Loop this while
-                        uint8_t switchPositions = XGpio_DiscreteRead(&gpioSWITCHES, 1);
-                        XGpio_DiscreteWrite(&gpioLED, 1, switchPositions);
 
-                        for (i = 0; i < 16; i+=2) {
-                            for (j = 0; j < 8; j++) {
-                                switchKey[i] = switchPositions[j] << 4;
-                                switchKey[i+1] = switchPositions[j];
-                            }
-                        }
-
-                        // key is now switcket affkdlas;s
 
 #endif // MILESTONE5
-
-
-
-
-
-
-
 
                         AES_init_ctx(&ctx, key);
 

@@ -42,9 +42,6 @@ typedef uint8_t bool;
 #define AES_keyExpSize 176
 
 
-enum SWITCH_MAPPING {0x2b7e, 0x1516, 0x28ae, 0xd2a6, 0xabf7, 0x1588, 0x09cf, 0x4f3c};
-
-
 struct AES_ctx
 {
   uint8_t RoundKey[AES_keyExpSize];
@@ -78,5 +75,9 @@ void AES_CBC_encrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length, 
 void AES_CBC_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length, bool verbose);
 
 #endif // #if defined(CBC) && (CBC == 1)
+
+
+typedef enum {SW0 = 0x2b7e, SW1 = 0x1516, SW2 = 0x28ae, SW3 = 0xd2a6, SW4 = 0xabf7, SW5 = 0x1588, SW6 = 0x09cf, SW7 = 0x4f3c} SWITCH_MAPPING;
+
 
 #endif /* SRC_AES_H_ */
