@@ -41,36 +41,36 @@ end AES_ECB_AXIS;
 
 architecture arch_imp of AES_ECB_AXIS is
 
-   -- Number of input/ output data packets
-   constant NUMBER_OF_INPUT_WORDS  : natural := 8;
-   constant NUMBER_OF_OUTPUT_WORDS : natural := 8;
-   -- Byte of zeros
-   constant ZEROS : std_logic_vector(31 downto 0) := (others=>'0');
+    -- Number of input/ output data packets
+    constant NUMBER_OF_INPUT_WORDS  : natural := 8;
+    constant NUMBER_OF_OUTPUT_WORDS : natural := 8;
+    -- Byte of zeros
+    constant ZEROS : std_logic_vector(31 downto 0) := (others=>'0');
 
-   -- AXIS states
-   type AXIS_STATE_TYPE is (Idle, Read_Inputs, Processing, Send_Outputs, Write_Outputs);
-   signal axis_state : AXIS_STATE_TYPE;
+    -- AXIS states
+    type AXIS_STATE_TYPE is (Idle, Read_Inputs, Processing, Send_Outputs, Write_Outputs);
+    signal axis_state : AXIS_STATE_TYPE;
 
-   -- Counters to store the number inputs/ outputs written
-   signal num_of_reads   : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
-   signal num_of_writes  : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
-   signal num_of_process : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
+    -- Counters to store the number inputs/ outputs written
+    signal num_of_reads   : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
+    signal num_of_writes  : natural range 0 to NUMBER_OF_OUTPUT_WORDS-1;
+    signal num_of_process : natural range 0 to NUMBER_OF_INPUT_WORDS-1;
 
-   -- Master last and output signals
-   signal tlast     : std_logic;
-   signal tdata_out : std_logic_vector(31 downto 0);
+    -- Master last and output signals
+    signal tlast     : std_logic;
+    signal tdata_out : std_logic_vector(31 downto 0);
 
-   -- Input/ output buffers
-   type OUT_ARRAY is array (0 to NUMBER_OF_OUTPUT_WORDS-1) of std_logic_vector(31 downto 0);
-   type IN_ARRAY  is array (0 to NUMBER_OF_INPUT_WORDS-1)  of std_logic_vector(31 downto 0);
-   signal out_buff : OUT_ARRAY := ((others=> (others=>'0')));
-   signal in_buff  : IN_ARRAY  := ((others=> (others=>'0')));
+    -- Input/ output buffers
+    type OUT_ARRAY is array (0 to NUMBER_OF_OUTPUT_WORDS-1) of std_logic_vector(31 downto 0);
+    type IN_ARRAY  is array (0 to NUMBER_OF_INPUT_WORDS-1)  of std_logic_vector(31 downto 0);
+    signal out_buff : OUT_ARRAY := ((others=> (others=>'0')));
+    signal in_buff  : IN_ARRAY  := ((others=> (others=>'0')));
 
-   -- Mode, states and roundkey
-   signal aes_mode : AES_MODE;
-   signal inState  : STATE;
-   signal inKey    : STATE;
-   signal outState : STATE;
+    -- Mode, states and roundkey
+    signal aes_mode : AES_MODE;
+    signal inState  : STATE;
+    signal inKey    : STATE;
+    signal outState : STATE;
 
 begin
 
