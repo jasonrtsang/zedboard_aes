@@ -85,6 +85,21 @@ int main(void)
     /* Initialize platform */
     init_platform();
 
+#ifdef MILESTONE5
+    XGpio gpioLED;
+    XGpio gpioSWITCHES;
+
+    // Initialise the peripherals
+    XGpio_Initialize(&gpioLED, XPAR_LEDS_4BIT_DEVICE_ID);
+    XGpio_Initialize(&gpioSWITCHES, XPAR_SWITCHES_8BIT_DEVICE_ID);
+
+    // Set the LED peripheral to outputs
+    XGpio_SetDataDirection(&gpioLED, 1, 0x00000000);
+
+    uint8_t switchKey[16];
+#endif // MILESTONE5
+
+
     /* Main application */
     while(!exitFlag) {
         printf("\r\n\r\n");
@@ -241,47 +256,73 @@ int main(void)
                         printf("Starting ECB encrypt...\r\n");
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
+
+
+#ifdef MILESTONE5
+
+                    // Loop this while
+                        uint8_t switchPositions = XGpio_DiscreteRead(&gpioSWITCHES, 1);
+                        XGpio_DiscreteWrite(&gpioLED, 1, switchPositions);
+
+                        for (i = 0; i < 16; i+=2) {
+                            for (j = 0; j < 8; j++) {
+                                switchKey[i] = switchPositions[j] << 4;
+                                switchKey[i+1] = switchPositions[j];
+                            }
+                        }
+
+                        // key is now switcket affkdlas;s
+
+#endif // MILESTONE5
+
+
+
+
+
+
+
+
                         AES_init_ctx(&ctx, key);
 
 #ifdef MILESTONE2
-						uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
-						/* Input key */
-						uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
-						*(baseaddr_p+0) = input_0;
-						uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
-						*(baseaddr_p+1) = input_1;
-						uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
-						*(baseaddr_p+2) = input_2;
-						uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
-						*(baseaddr_p+3) = input_3;
-						*(baseaddr_p+48) = ENCRYPTION;
+                        uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
+                        /* Input key */
+                        uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
+                        *(baseaddr_p+0) = input_0;
+                        uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
+                        *(baseaddr_p+1) = input_1;
+                        uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
+                        *(baseaddr_p+2) = input_2;
+                        uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
+                        *(baseaddr_p+3) = input_3;
+                        *(baseaddr_p+48) = ENCRYPTION;
 
-						/* Output round keys */
-						j = 0;
-						for (i = 4; i < 48; i++) {
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
-							ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
-						}
+                        /* Output round keys */
+                        j = 0;
+                        for (i = 4; i < 48; i++) {
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
+                            ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
+                        }
 
-						/* Print IP block vs SW implementation */
-						printf("\nHW Round Keys\n");
-						for (i = 0; i < 176; i++) {
-							printf("%.2x ", ctx_block.RoundKey[i]);
-						}
-						printf("\n\nSW Round Keys\n");
-						for (i = 0; i < 176; i++) {
-							printf("%.2x ", ctx.RoundKey[i]);
-						}
-						printf("\n");
+                        /* Print IP block vs SW implementation */
+                        printf("\nHW Round Keys\n");
+                        for (i = 0; i < 176; i++) {
+                            printf("%.2x ", ctx_block.RoundKey[i]);
+                        }
+                        printf("\n\nSW Round Keys\n");
+                        for (i = 0; i < 176; i++) {
+                            printf("%.2x ", ctx.RoundKey[i]);
+                        }
+                        printf("\n");
 
-						/* Diff SW and HW to validate */
-						for (i = 0; i < 176; i++) {
-							if (ctx.RoundKey[i] != ctx_block.RoundKey[i]) {
-								printf("UH OH: SW Key Expansion does not match that of HW\r\n");
-							}
-						}
+                        /* Diff SW and HW to validate */
+                        for (i = 0; i < 176; i++) {
+                            if (ctx.RoundKey[i] != ctx_block.RoundKey[i]) {
+                                printf("UH OH: SW Key Expansion does not match that of HW\r\n");
+                            }
+                        }
 #endif // MILESTONE2
 
                         AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
@@ -297,44 +338,44 @@ int main(void)
                         AES_init_ctx(&ctx, key);
 
 #ifdef MILESTONE3
-						uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
-						/* Input key */
-						uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
-						*(baseaddr_p+0) = input_0;
-						uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
-						*(baseaddr_p+1) = input_1;
-						uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
-						*(baseaddr_p+2) = input_2;
-						uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
-						*(baseaddr_p+3) = input_3;
-						*(baseaddr_p+48) = ENCRYPTION;
+                        uint32_t *baseaddr_p = (uint32_t *)XPAR_KEY_EXPANSION_0_S00_AXI_BASEADDR;
+                        /* Input key */
+                        uint32_t input_0 = key[3] | key[2] << 8 | key[1] << 16 | key[0] << 24;
+                        *(baseaddr_p+0) = input_0;
+                        uint32_t input_1 = key[7] | key[6] << 8 | key[5] << 16 | key[4] << 24;
+                        *(baseaddr_p+1) = input_1;
+                        uint32_t input_2 = key[11] | key[10] << 8 | key[9] << 16 | key[8] << 24;
+                        *(baseaddr_p+2) = input_2;
+                        uint32_t input_3 = key[15] | key[14] << 8 | key[13] << 16 | key[12] << 24;
+                        *(baseaddr_p+3) = input_3;
+                        *(baseaddr_p+48) = ENCRYPTION;
 
-						/* Output round keys */
-						j = 0;
-						for (i = 4; i < 48; i++) {
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
-							ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
-							ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
-						}
+                        /* Output round keys */
+                        j = 0;
+                        for (i = 4; i < 48; i++) {
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 24) & 0xFF;
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 16) & 0xFF;
+                            ctx_block.RoundKey[j++] = (*(baseaddr_p+i) >> 8) & 0xFF;
+                            ctx_block.RoundKey[j++] = *(baseaddr_p+i) & 0xFF;
+                        }
 
-						/* Print IP block vs SW implementation */
-						printf("\nHW Round Keys\n");
-						for (i = 0; i < 176; i++) {
-							printf("%.2x ", ctx_block.RoundKey[i]);
-						}
-						printf("\n\nSW Round Keys\n");
-						for (i = 0; i < 176; i++) {
-							printf("%.2x ", ctx.RoundKey[i]);
-						}
-						printf("\n");
+                        /* Print IP block vs SW implementation */
+                        printf("\nHW Round Keys\n");
+                        for (i = 0; i < 176; i++) {
+                            printf("%.2x ", ctx_block.RoundKey[i]);
+                        }
+                        printf("\n\nSW Round Keys\n");
+                        for (i = 0; i < 176; i++) {
+                            printf("%.2x ", ctx.RoundKey[i]);
+                        }
+                        printf("\n");
 
-						/* Diff SW and HW to validate */
-						for (i = 0; i < 176; i++) {
-							if (ctx.RoundKey[i] != ctx_block.RoundKey[i]) {
-								printf("UH OH: SW Key Expansion does not match that of HW\r\n");
-							}
-						}
+                        /* Diff SW and HW to validate */
+                        for (i = 0; i < 176; i++) {
+                            if (ctx.RoundKey[i] != ctx_block.RoundKey[i]) {
+                                printf("UH OH: SW Key Expansion does not match that of HW\r\n");
+                            }
+                        }
 #endif // MILESTONE3
 
                         AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);

@@ -41,6 +41,10 @@ typedef uint8_t bool;
 #define AES_KEYLEN 16   // Key length in bytes
 #define AES_keyExpSize 176
 
+
+enum SWITCH_MAPPING {0x2b7e, 0x1516, 0x28ae, 0xd2a6, 0xabf7, 0x1588, 0x09cf, 0x4f3c};
+
+
 struct AES_ctx
 {
   uint8_t RoundKey[AES_keyExpSize];
