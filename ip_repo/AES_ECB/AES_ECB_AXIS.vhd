@@ -94,7 +94,7 @@ architecture arch_imp of AES_ECB_AXIS is
    -- Total number of output data
    constant NUMBER_OF_OUTPUT_WORDS : natural := 8;
 
-   type STATE_TYPE is (Idle, Read_Inputs, Write_Outputs);
+   type STATE_TYPE is (Idle, Read_Inputs, Processing, Write_Outputs);
 
    signal state        : STATE_TYPE;
 
@@ -107,6 +107,7 @@ architecture arch_imp of AES_ECB_AXIS is
    
    -- TLAST signal
    signal tlast : std_logic;
+   signal tdata_out : std_logic_vector(31 downto 0);
    
    type out_array is array (0 to NUMBER_OF_OUTPUT_WORDS-1) of std_logic_vector(31 downto 0);
    type in_array is array (0 to NUMBER_OF_INPUT_WORDS-1) of std_logic_vector(31 downto 0);
@@ -114,6 +115,8 @@ architecture arch_imp of AES_ECB_AXIS is
    signal output_mem: out_array := ((others=> (others=>'0')));
    signal input_mem: in_array := ((others=> (others=>'0')));
 --   signal key: in_array := ((others=> (others=>'0')));
+
+   constant zeros : std_logic_vector(31 downto 0) := (others=>'0');
    
 begin
    -- CAUTION:
@@ -124,6 +127,7 @@ begin
    S_AXIS_TREADY  <= '0' when state = Write_Outputs else '1';
    M_AXIS_TVALID <= '1' when state = Write_Outputs else '0';
    M_AXIS_TLAST <= tlast;
+   M_AXIS_TDATA <= tdata_out when state = Write_Outputs else zeros;
 
    The_SW_accelerator : process (ACLK) is
    begin  -- process The_SW_accelerator
@@ -150,24 +154,31 @@ begin
             if (S_AXIS_TVALID = '1') then
               input_mem(nr_of_reads) <= std_logic_vector(unsigned(S_AXIS_TDATA));
               if (S_AXIS_TLAST = '1' or nr_of_reads = 0) then
-                state        <= Write_Outputs;
+                state        <= Processing;
               else
                 nr_of_reads <= nr_of_reads - 1;
               end if;
             end if;
-
+            
+          when Processing =>
+            -- Inject ECB code here? or start from here
+--            tdata_out <= input_mem(nr_of_writes);
+            tdata_out <= input_mem(nr_of_writes);
+            state <= Write_Outputs;
+            
           when Write_Outputs =>
             if (M_AXIS_TREADY = '1') then
               if (nr_of_writes = 0) then
                 tlast <= '0';
                 state <= Idle;
               else
-                M_AXIS_TDATA <= input_mem(nr_of_writes);
+--                M_AXIS_TDATA <= input_mem(nr_of_writes);
                 -- assert TLAST on last transmitted word
                 if (nr_of_writes = 1) then
                   tlast <= '1';
                 end if;
                 nr_of_writes <= nr_of_writes - 1;
+                state <= Processing;
               end if;
             end if;
         end case;
