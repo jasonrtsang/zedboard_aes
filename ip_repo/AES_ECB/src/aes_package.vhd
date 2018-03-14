@@ -7,8 +7,6 @@ package aes_package is
     constant state_size : positive := 4;
     constant num_rounds : positive := 11;
     
-    constant NUMBER_OF_INPUT_WORDS  : integer := 2;
-    
     -- BYTE:
     --  (7 downto 0)
     -- WORD:
@@ -35,8 +33,4 @@ package aes_package is
     -- https://en.wikipedia.org/wiki/Rijndael_key_schedule
     constant RCON : BYTE_ARRAY (1 to num_rounds-1) := (x"01", x"02", x"04", x"08", x"10", 
                                              x"20", x"40", x"80", x"1B", x"36");
-                                             
-                                             
-    type WORD_FIFO_TYPE is array (0 to (NUMBER_OF_INPUT_WORDS-1)) of std_logic_vector(31 downto 0);                                        
-                                             
 end package aes_package;
