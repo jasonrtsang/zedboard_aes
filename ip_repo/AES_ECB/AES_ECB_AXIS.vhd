@@ -42,10 +42,11 @@ end AES_ECB_AXIS;
 architecture arch_imp of AES_ECB_AXIS is
 
     -- Number of input/ output data packets
-    constant NUMBER_OF_INPUT_WORDS  : natural := 8;
-    constant NUMBER_OF_OUTPUT_WORDS : natural := 8;
+    constant NUMBER_OF_INPUT_WORDS  : natural := 9;
+    constant NUMBER_OF_OUTPUT_WORDS : natural := 9;
     -- Byte of zeros
     constant ZEROS : std_logic_vector(31 downto 0) := (others=>'0');
+    constant ONES : std_logic_vector(31 downto 0) := (others=>'1');
 
     -- AXIS states
     type AXIS_STATE_TYPE is (Idle, Read_Inputs, Processing, Send_Outputs, Write_Outputs);
@@ -71,6 +72,8 @@ architecture arch_imp of AES_ECB_AXIS is
     signal inState  : STATE;
     signal inKey    : STATE;
     signal outState : STATE;
+    
+    signal outMode : std_logic_vector(31 downto 0);
 
 begin
 
@@ -79,6 +82,20 @@ begin
     M_AXIS_TVALID <= '1' when axis_state = Write_Outputs else '0';
     M_AXIS_TDATA  <= tdata_out when axis_state = Write_Outputs else ZEROS;
     M_AXIS_TLAST  <= tlast;
+    
+    aes_mode <= ENCRYPTION when (in_buff(8) = ZEROS) else DECRYPTION;
+    inState <= (
+        (in_buff(7)(31 downto 24), in_buff(7)(23 downto 16), in_buff(7)(15 downto 8), in_buff(7)(7 downto 0)),
+        (in_buff(6)(31 downto 24), in_buff(6)(23 downto 16), in_buff(6)(15 downto 8), in_buff(6)(7 downto 0)),
+        (in_buff(5)(31 downto 24), in_buff(5)(23 downto 16), in_buff(5)(15 downto 8), in_buff(5)(7 downto 0)),
+        (in_buff(4)(31 downto 24), in_buff(4)(23 downto 16), in_buff(4)(15 downto 8), in_buff(4)(7 downto 0)));
+    inKey <= (
+        (in_buff(3)(31 downto 24), in_buff(3)(23 downto 16), in_buff(3)(15 downto 8), in_buff(3)(7 downto 0)),
+        (in_buff(2)(31 downto 24), in_buff(2)(23 downto 16), in_buff(2)(15 downto 8), in_buff(2)(7 downto 0)),
+        (in_buff(1)(31 downto 24), in_buff(1)(23 downto 16), in_buff(1)(15 downto 8), in_buff(1)(7 downto 0)),
+        (in_buff(0)(31 downto 24), in_buff(0)(23 downto 16), in_buff(0)(15 downto 8), in_buff(0)(7 downto 0)));
+
+    outMode <= ZEROS when (aes_mode = ENCRYPTION) else ONES;
 
     state_machine : process (ACLK) is
     begin
@@ -86,7 +103,7 @@ begin
         if ARESETN = '0' then
             num_of_reads   <= 0;
             num_of_writes  <= 0;
-            num_of_process <= 0;
+            num_of_process <= NUMBER_OF_INPUT_WORDS-1;
             in_buff        <= ((others=> (others=>'0')));
             out_buff       <= ((others=> (others=>'0')));
             tlast          <= '0';
@@ -107,7 +124,7 @@ begin
                     -- Last packet or input buffer is full, else loop input S_AXIS_TDATA
                     if (S_AXIS_TLAST = '1' or num_of_reads = 0) then
                         -- Set starting address for output buffer
-                        num_of_process <= NUMBER_OF_INPUT_WORDS-1;
+                        num_of_process <= 0;
                         axis_state <= Processing;
                     else
                         num_of_reads <= num_of_reads-1;
@@ -116,15 +133,26 @@ begin
                 when Processing =>
                     -- *** 
                     -- Inject ECB IP connection here
+                    -- 9 input words, 1 for AES_mode, 4 for state, 4 for round key
+                    -- Technically only need 4 output words for the output state
                     -- ***
 
                     -- Just copy input to output buffer (could reuse in_buff?)
-                    out_buff(num_of_process) <= in_buff(num_of_process);
                     if (num_of_process = 0) then
+                        out_buff(num_of_process) <= outMode;
+                        num_of_process <= num_of_process+1;
+                    elsif (num_of_process >= 1 and num_of_process <= 4) then
+                        out_buff(num_of_process) <= inState(num_of_process-1)(0) & inState(num_of_process-1)(1) & inState(num_of_process-1)(2) & inState(num_of_process-1)(3);
+                        num_of_process <= num_of_process+1;
+                    elsif (num_of_process >= 5 and num_of_process <= 7) then
+                        out_buff(num_of_process) <= inKey(num_of_process-5)(0) & inKey(num_of_process-5)(1) & inKey(num_of_process-5)(2) & inKey(num_of_process-5)(3);
+                        num_of_process <= num_of_process+1;
+                    elsif (num_of_process = 8) then
+                        out_buff(num_of_process) <= inKey(3)(0) & inKey(3)(1) & inKey(3)(2) & inKey(3)(3);
                         num_of_writes <= NUMBER_OF_OUTPUT_WORDS-1;
                         axis_state <= Send_Outputs;
                     else
-                        num_of_process <= num_of_process-1;
+                        axis_state <= Idle;
                     end if;
 
                 when Send_Outputs =>
