@@ -169,6 +169,7 @@ int main(void)
 
     /* Main application */
     while(!exitFlag) {
+    	fflush(stdin);
     	cancelFlag = false;
         printf("\r\n\r\n");
         printf("~~~~~~~~~~~~~~~~ AES Encryption/ Decryption ~~~~~~~~~~~~~~~\r\n");
@@ -334,9 +335,12 @@ int main(void)
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
-
+						printf("Running ECB decryption...\r\n");
 						AES_init_ctx(&ctx, switchKey);
-                        AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead);
+                        if (!AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
+							printf("ECB decryption CANCELED\r\n");
+							break;
+						}
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
                         write_to_file(fileNameOut, inputBuf, fileSizeRead);
@@ -346,11 +350,6 @@ int main(void)
                         break;
                 }
                 break;
-
-            /* Byte file comparison */
-            case '5':
-            	byte_comparison();
-            	break;
 
             /* Any other key */
             default:
@@ -362,56 +361,6 @@ int main(void)
     printf("\r\n#####\r\nBYE!\r\n#####\r\n");
     cleanup_platform();
     return 0;
-}
-
-/*****************************************************************************/
-/**
-*
-* Compare two files on SD
-*
-* @param    None
-*
-* @return   true if matches, false otherwise
-*
-* @note     None
-*
-******************************************************************************/
-void byte_comparison(void)
-{
-    printf("Starting byte comparison...\r\n");
-    char firstFile[FILENAME_LIMIT] = "", secondFile[FILENAME_LIMIT] = "";
-    int i;
-    uint32_t firstFileSize = 0, secondFileSize = 0;
-    uint8_t inputBuf1[10*1024*1024] __attribute__ ((aligned(32)));
-    uint8_t inputBuf2[10*1024*1024] __attribute__ ((aligned(32)));
-
-    printf("> 1st file\n\r");
-    prompt_file_input(firstFile);
-    printf("> 2nd file\n\r");
-    prompt_file_input(secondFile);
-
-    /* Open both files */
-    if(!read_from_file(firstFile, inputBuf1, &firstFileSize) || !read_from_file(secondFile, inputBuf2, &secondFileSize)) {
-    	printf("UH OH: Could not open one the files specified\r\n");
-        return;
-    }
-
-    /* Size verification */
-    if (firstFileSize != secondFileSize) {
-        printf("UH OH: Their file sizes don't match\r\n");
-        return;
-    } else {
-        /* Data verification */
-        printf("Verifying content...\r\n");
-        for(i = 0; i < firstFileSize; i++){
-            if(inputBuf1[i] != inputBuf2[i]){
-            	printf("UH OH: THEY LIKE DONT MATCH CONTENT AT ALL\r\n");
-                return;
-            }
-        }
-    }
-    printf("Yup, Both files match!\r\n");
-    printf("Done!\r\n");
 }
 
 /*****************************************************************************/

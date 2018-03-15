@@ -60,7 +60,7 @@ void AES_ctx_set_iv(struct AES_ctx* ctx, const uint8_t* iv);
 // you need only AES_init_ctx as IV is not used in ECB
 // NB: ECB is considered insecure for most uses
 bool AES_ECB_encrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length);
-void AES_ECB_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length);
+bool AES_ECB_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length);
 
 #endif // #if defined(ECB) && (ECB == !)
 

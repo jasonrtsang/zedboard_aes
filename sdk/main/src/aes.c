@@ -422,49 +422,48 @@ static void Cipher(state_t* state, uint8_t* RoundKey)
   SubBytes(state);
   ShiftRows(state);
   AddRoundKey(Nr, state, RoundKey);
-  printf("ME GNAJDKLFDAOSUGIOJADIO;NFGAS");
-
   } while(!cancelFlag && round < Nr);
 }
 
 static void InvCipher(state_t* state,uint8_t* RoundKey)
 {
-  uint8_t round = 0;
-  // Add the First round key to the state before starting the rounds.
-  AddRoundKey(Nr, state, RoundKey);
+	  uint8_t round = 0;
+	do {
+	  // Add the First round key to the state before starting the rounds.
+	  AddRoundKey(Nr, state, RoundKey);
 
-  // There will be Nr rounds.
-  // The first Nr-1 rounds are identical.
-  // These Nr-1 rounds are executed in the loop below.
-  for (round = (Nr - 1); round > 0; --round)
-  {
-    InvShiftRows(state);
-    InvSubBytes(state);
-    AddRoundKey(round, state, RoundKey);
-    InvMixColumns(state);
-  }
+	  // There will be Nr rounds.
+	  // The first Nr-1 rounds are identical.
+	  // These Nr-1 rounds are executed in the loop below.
+	  for (round = (Nr - 1); round > 0; --round)
+	  {
+		InvShiftRows(state);
+		InvSubBytes(state);
+		AddRoundKey(round, state, RoundKey);
+		InvMixColumns(state);
+	  }
 
-  // The last round is given below.
-  // The MixColumns function is not here in the last round.
-  InvShiftRows(state);
-  InvSubBytes(state);
-  AddRoundKey(0, state, RoundKey);
+	  // The last round is given below.
+	  // The MixColumns function is not here in the last round.
+	  InvShiftRows(state);
+	  InvSubBytes(state);
+	  AddRoundKey(0, state, RoundKey);
+	} while(!cancelFlag && round > 0);
 }
-
 
 // Print state matrix in hex
-static void pstate(const uint8_t round, const char process[], state_t* state)
-{
-  unsigned char i, j;
-
-  printf("\n- %d - %s\n", round, process);
-  for (i = 0; i < 4; ++i) {
-    for (j = 0; j < 4; ++j) {
-      printf("%.2x ", (*state)[i][j]);
-    }
-    printf("\n");
-  }
-}
+//static void pstate(const uint8_t round, const char process[], state_t* state)
+//{
+//  unsigned char i, j;
+//
+//  printf("\n- %d - %s\n", round, process);
+//  for (i = 0; i < 4; ++i) {
+//    for (j = 0; j < 4; ++j) {
+//      printf("%.2x ", (*state)[i][j]);
+//    }
+//    printf("\n");
+//  }
+//}
 
 /*****************************************************************************/
 /* Public functions:                                                         */
@@ -485,7 +484,7 @@ bool AES_ECB_encrypt_buffer(struct AES_ctx *ctx, uint8_t* buf, uint32_t length)
   }
   return true;
 }
-void AES_ECB_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length)
+bool AES_ECB_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length)
 {
   uintptr_t i;
   for (i = 0; i < length; i += AES_BLOCKLEN)
@@ -493,7 +492,11 @@ void AES_ECB_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length)
     // The next function call decrypts the PlainText with the Key using AES algorithm.
     InvCipher((state_t*)buf, ctx->RoundKey);
     buf += AES_BLOCKLEN;
+    if (cancelFlag) {
+    	return false;
+    }
   }
+  return true;
 }
 
 #endif // #if defined(ECB) && (ECB == 1)
