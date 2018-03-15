@@ -33,6 +33,8 @@
 
 /************************** Function Prototypes ******************************/
 void prompt_file_input(char *fileName);
+void byte_comparison(void);
+void create_test_bin(void);
 bool write_to_file(const char *sdFile, const uint8_t *writeBuf, const uint32_t writeSize);
 bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 
@@ -45,9 +47,6 @@ static FIL fil; // Specified file input
 
 #define DECRYPTION 0
 #define ENCRYPTION 1
-
-
-
 
 /*****************************************************************************
 *
@@ -62,10 +61,6 @@ static FIL fil; // Specified file input
 ******************************************************************************/
 int main(void)
 {
-
-
-
-
 
 
     /* Fixed keys and initialization vector (cbc) */
@@ -105,7 +100,7 @@ int main(void)
     const uint8_t iv[]  = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
     /* Universally used variables */
-    int i, menuChoice, modeChoice, testBinChoice;
+    int i, menuChoice, modeChoice;
     uint32_t fileSizeRead;
 
     const TCHAR *Path = "0:/"; // Base directory of SD
@@ -115,7 +110,6 @@ int main(void)
     char fileNameOut[FILENAME_LIMIT]; // Output file name
 
     static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
-    static uint8_t outputBuf[10*1024*1024] __attribute__ ((aligned(32)));
 
     struct AES_ctx ctx; // Context
 
@@ -124,6 +118,7 @@ int main(void)
     /* Initialize platform */
     init_platform();
 
+    /* Switches and LEDs Setup*/
     XGpio gpioSwitches;
     XGpio gpioLeds;
     uint8_t switchKey[16];
@@ -143,13 +138,6 @@ int main(void)
 	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
 
-
-
-
-
-
-
-
     /* Main application */
     while(!exitFlag) {
         printf("\r\n\r\n");
@@ -160,17 +148,12 @@ int main(void)
         printf("~~~~~~~~~~~~~~~~~~~~~~~ Menu Starts ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
         printf(" Press '1' to Format SD card\r\n");
         printf(" Press '2' to Create TEST.BIN file\r\n");
-        printf(" Press '3' to Specify current file\r\n");
-        printf(" Press '4' to Enter CBC mode submenu\r\n");
-        printf(" Press '5' to Enter ECB mode submenu\r\n");
-        printf(" Press '6' to Byte compare two files\r\n");
+        printf(" Press '3' to Enter CBC mode submenu\r\n");
+        printf(" Press '4' to Enter ECB mode submenu\r\n");
+        printf(" Press '5' to Byte compare two files\r\n");
         printf(" Press any other key to exit\r\n");
         printf("~~~~~~~~~~~~~~~~~~~~~~~~ Menu Ends ~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
-        printf(" Current File: ");
-        for(i = 0; i < FILENAME_LIMIT; i++) {
-            printf("%c", fileNameIn[i]);
-        }
-        printf("\r\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+
         /* Poll on menu selection */
         menuChoice = inbyte();
         fflush(stdin);
@@ -197,48 +180,11 @@ int main(void)
 
             /* Create TEST.BIN */
             case '2':
-                printf("\r\n\r\n");
-                printf("~~~~~~~~~~~~~~~~~~~~~~~ TEST.BIN ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
-                printf(" Press '1' to Create 16 byte size\r\n");
-                printf(" Press '2' to Create 64 byte size\r\n");
-                printf(" Press any other key to return to main menu\r\n");
-                printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
-                /* Poll on mode selection */
-                testBinChoice = inbyte();
-                fflush(stdin);
-                printf(" Selection : %c\r\n\r\n", testBinChoice);
-
-                const char SD_TestBin[] = "TEST.BIN";
-                uint32_t fileSize; // in bytes
-                printf("Creating TEST.BIN...\r\n");
-                switch(testBinChoice) {
-                    case '1':
-                        fileSize = TESTBIN_SIZE_16;
-                        break;
-                    case '2':
-                        fileSize = TESTBIN_SIZE_64;
-                        break;
-                    default:
-                        break;
-                }
-                /* Populate TEST.BIN with incrementing index */
-                for(i = 0; i < fileSize; i++) {
-                    outputBuf[i] = i;
-                }
-                if(!write_to_file(SD_TestBin, outputBuf, fileSize)) {
-                    printf("Is the SD card plugged in and not locked?\r\n");
-                } else {
-                    printf("Done!\r\n");
-                }
-                break;
-
-            /* Current file input */
-            case '3':
-                prompt_file_input(fileNameIn);
-                break;
+            	create_test_bin();
+            	break;
 
             /* CBC */
-            case '4':
+            case '3':
                 printf("\r\n\r\n");
                 printf("~~~~~~~~~~~~~~~~~~~~~~~ CBC Mode ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
                 printf(" Press '1' to Run encryption\r\n");
@@ -249,15 +195,16 @@ int main(void)
                 modeChoice = inbyte();
                 printf(" Selection : %c\r\n\r\n", modeChoice);
 
-                /* Read the current specified file */
-                fileSizeRead = 0;
-                if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
-                    break;
-                }
-
                 switch(modeChoice) {
                     case '1': /* Encrypt */
                         printf("Starting CBC encrypt...\r\n");
+						printf("> Input file to encrypt\r\n");
+                        prompt_file_input(fileNameIn);
+                        /* Read the current specified file */
+                        fileSizeRead = 0;
+                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                            break;
+                        }
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv);
@@ -269,6 +216,13 @@ int main(void)
                         break;
                     case '2': /* Decrypt */
                         printf("Starting CBC decrypt...\r\n");
+						printf("> Input file to decrypt\r\n");
+                        prompt_file_input(fileNameIn);
+                        /* Read the current specified file */
+                        fileSizeRead = 0;
+                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                            break;
+                        }
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv);
@@ -283,7 +237,7 @@ int main(void)
                 }
                 break;
             /* ECB */
-            case '5':
+            case '4':
                 printf("\r\n\r\n");
                 printf("~~~~~~~~~~~~~~~~~~~~~~~ ECB Mode ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
                 printf(" Press '1' to Run encryption\r\n");
@@ -295,15 +249,16 @@ int main(void)
                 fflush(stdin);
                 printf(" Selection : %c\r\n\r\n", modeChoice);
 
-                /* Read the current specified file */
-                fileSizeRead = 0;
-                if (!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
-                    break;
-                }
-
                 switch(modeChoice) {
                     case '1': /* Encrypt */
                         printf("Starting ECB encrypt...\r\n");
+						printf("> Input file to encrypt\r\n");
+                        prompt_file_input(fileNameIn);
+                        /* Read the current specified file */
+                        fileSizeRead = 0;
+                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                            break;
+                        }
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
 
@@ -313,7 +268,7 @@ int main(void)
 						// Read from the GPIO to determine the position of the DIP switches
 						dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
 						// Write the value back to the LEDS
-						XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
+//						XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
@@ -327,6 +282,13 @@ int main(void)
                         break;
                     case '2': /* Decrypt */
                         printf("Starting ECB decrypt...\r\n");
+						printf("> Input file to decrypt\r\n");
+                        prompt_file_input(fileNameIn);
+                        /* Read the current specified file */
+                        fileSizeRead = 0;
+                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                            break;
+                        }
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
 
@@ -336,7 +298,7 @@ int main(void)
 						// Read from the GPIO to determine the position of the DIP switches
 						dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
 						// Write the value back to the LEDS
-						XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
+//						XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
@@ -353,42 +315,10 @@ int main(void)
                 }
                 break;
 
-            /* Byte file comparision */
-            case '6':
-                printf("Starting byte comparison...\r\n");
-                char firstFile[FILENAME_LIMIT] = "", secondFile[FILENAME_LIMIT] = "";
-                uint32_t firstFileSize = 0, secondFileSize = 0;
-                bool different = false;
-
-                printf("> 1st file\n\r");
-                prompt_file_input(firstFile);
-                printf("> 2nd file\n\r");
-                prompt_file_input(secondFile);
-
-                /* Open both files */
-                if(!read_from_file(firstFile, inputBuf, &firstFileSize) || !read_from_file(secondFile, outputBuf, &secondFileSize)) {
-                    break;
-                }
-
-                /* Size verification */
-                if (firstFileSize != secondFileSize) {
-                    printf("UH OH: Their file sizes don't match\r\n");
-                } else {
-                    /* Data verification */
-                    printf("Verifying content...\r\n");
-                    for(i = 0; i < firstFileSize; i++){
-                       if(inputBuf[i] != outputBuf[i]){
-                           different = true;
-                           printf("UH OH: THEY LIKE DONT MATCH CONTENT AT ALL\r\n");
-                           break;
-                       }
-                    }
-                }
-                if(!different) {
-                    printf("Yup, Both files match!\r\n");
-                    printf("Done!\r\n");
-                }
-               break;
+            /* Byte file comparison */
+            case '5':
+            	byte_comparison();
+            	break;
 
             /* Any other key */
             default:
@@ -400,6 +330,108 @@ int main(void)
     printf("\r\n#####\r\nBYE!\r\n#####\r\n");
     cleanup_platform();
     return 0;
+}
+
+/*****************************************************************************/
+/**
+*
+* Compare two files on SD
+*
+* @param    None
+*
+* @return   true if matches, false otherwise
+*
+* @note     None
+*
+******************************************************************************/
+void byte_comparison(void)
+{
+    printf("Starting byte comparison...\r\n");
+    char firstFile[FILENAME_LIMIT] = "", secondFile[FILENAME_LIMIT] = "";
+    int i;
+    uint32_t firstFileSize = 0, secondFileSize = 0;
+    uint8_t inputBuf1[10*1024*1024] __attribute__ ((aligned(32)));
+    uint8_t inputBuf2[10*1024*1024] __attribute__ ((aligned(32)));
+
+    printf("> 1st file\n\r");
+    prompt_file_input(firstFile);
+    printf("> 2nd file\n\r");
+    prompt_file_input(secondFile);
+
+    /* Open both files */
+    if(!read_from_file(firstFile, inputBuf1, &firstFileSize) || !read_from_file(secondFile, inputBuf2, &secondFileSize)) {
+    	printf("UH OH: Could not open one the files specified\r\n");
+        return;
+    }
+
+    /* Size verification */
+    if (firstFileSize != secondFileSize) {
+        printf("UH OH: Their file sizes don't match\r\n");
+        return;
+    } else {
+        /* Data verification */
+        printf("Verifying content...\r\n");
+        for(i = 0; i < firstFileSize; i++){
+            if(inputBuf1[i] != inputBuf2[i]){
+            	printf("UH OH: THEY LIKE DONT MATCH CONTENT AT ALL\r\n");
+                return;
+            }
+        }
+    }
+    printf("Yup, Both files match!\r\n");
+    printf("Done!\r\n");
+}
+
+/*****************************************************************************/
+/**
+*
+* Create 16 or 64 bytes test binary
+*
+* @param    None
+*
+* @return   true if successful, false otherwise
+*
+* @note     None
+*
+******************************************************************************/
+void create_test_bin(void)
+{
+	int i, testBinChoice;
+	uint8_t outputBuf[64] __attribute__ ((aligned(32)));
+
+    printf("\r\n\r\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~ TEST.BIN ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+    printf(" Press '1' to Create 16 byte size\r\n");
+    printf(" Press '2' to Create 64 byte size\r\n");
+    printf(" Press any other key to return to main menu\r\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
+    /* Poll on mode selection */
+    testBinChoice = inbyte();
+    fflush(stdin);
+    printf(" Selection : %c\r\n\r\n", testBinChoice);
+
+    const char SD_TestBin[] = "TEST.BIN";
+    uint32_t fileSize; // in bytes
+    printf("Creating TEST.BIN...\r\n");
+    switch(testBinChoice) {
+        case '1':
+            fileSize = TESTBIN_SIZE_16;
+            break;
+        case '2':
+            fileSize = TESTBIN_SIZE_64;
+            break;
+        default:
+            break;
+    }
+    /* Populate TEST.BIN with incrementing index */
+    for(i = 0; i < fileSize; i++) {
+        outputBuf[i] = i;
+    }
+    if(!write_to_file(SD_TestBin, outputBuf, fileSize)) {
+    	printf("Is the SD card plugged in and not locked?\r\n");
+    } else {
+    	printf("Done!\r\n");
+    }
 }
 
 /*****************************************************************************/
