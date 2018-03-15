@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
 	<name>dma_temp</name>
-	<comment>Created by SDK v2017.3. sd_bsp_0 - ps7_cortexa9_0</comment>
+	<comment></comment>
 	<projects>
-		<project>sd_bsp_0</project>
+		<project>standalone_bsp_0</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
