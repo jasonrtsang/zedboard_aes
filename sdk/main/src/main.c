@@ -167,14 +167,12 @@ int main(void)
 
     SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
-
     /* Main application */
     while(!exitFlag) {
+    	cancelFlag = false;
         printf("\r\n\r\n");
         printf("~~~~~~~~~~~~~~~~ AES Encryption/ Decryption ~~~~~~~~~~~~~~~\r\n");
         printf(" SELECT the operation from the below menu \r\n");
-        printf(" TOGGLE 'SW0' high for verbose output\r\n");
-        printf(" NOTE There is a single fixed key for this application\r\n");
         printf("~~~~~~~~~~~~~~~~~~~~~~~ Menu Starts ~~~~~~~~~~~~~~~~~~~~~~~\r\n");
         printf(" Press '1' to Format SD card\r\n");
         printf(" Press '2' to Create TEST.BIN file\r\n");
@@ -238,7 +236,7 @@ int main(void)
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv_key);
-                        AES_CBC_encrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
+                        AES_CBC_encrypt_buffer(&ctx, inputBuf, fileSizeRead);
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
                         write_to_file(fileNameOut, inputBuf, fileSizeRead);
@@ -256,7 +254,7 @@ int main(void)
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv_key);
-                        AES_CBC_decrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
+                        AES_CBC_decrypt_buffer(&ctx, inputBuf, fileSizeRead);
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
                         write_to_file(fileNameOut, inputBuf, fileSizeRead);
@@ -302,9 +300,13 @@ int main(void)
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
-
+						printf("Running ECB encryption...\r\n");
 						AES_init_ctx(&ctx, switchKey);
-                        AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
+                        if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
+                        	printf("ECB encryption CANCELED\r\n");
+                        	break;
+                        }
+
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
                         write_to_file(fileNameOut, inputBuf, fileSizeRead);
@@ -334,7 +336,7 @@ int main(void)
                         }
 
 						AES_init_ctx(&ctx, switchKey);
-                        AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
+                        AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead);
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
                         write_to_file(fileNameOut, inputBuf, fileSizeRead);
@@ -696,4 +698,5 @@ static void IntrHandler(void *CallBackRef, int Bank, u32 Status)
     XGpioPs *Gpioint = (XGpioPs *)CallBackRef;
     XGpioPs_IntrClearPin(Gpioint, pbsw);
     printf("****button pressed****\n\r");
+    cancelFlag = true;
 }
