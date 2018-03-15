@@ -3,7 +3,7 @@
 	<name>main</name>
 	<comment></comment>
 	<projects>
-		<project>sd_bsp_0</project>
+		<project>standalone_bsp_0</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

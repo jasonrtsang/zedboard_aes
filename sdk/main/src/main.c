@@ -18,6 +18,7 @@
 #include "xil_types.h"
 #include "xparameters.h"
 #include "xscugic.h"
+#include "xgpiops.h"
 
 /* SD Headers */
 #include "ff.h"
@@ -42,10 +43,11 @@ bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 #define TESTBIN_SIZE_64 64
 static FIL fil; // Specified file input
 
-#ifdef MILESTONE5
 #define DECRYPTION 0
 #define ENCRYPTION 1
-#endif // MILESTONE5
+
+
+
 
 /*****************************************************************************
 *
@@ -60,6 +62,11 @@ static FIL fil; // Specified file input
 ******************************************************************************/
 int main(void)
 {
+
+
+
+
+
 
     /* Fixed keys and initialization vector (cbc) */
     const uint8_t keys[] = {
@@ -117,7 +124,6 @@ int main(void)
     /* Initialize platform */
     init_platform();
 
-#ifdef MILESTONE5
     XGpio gpioSwitches;
     XGpio gpioLeds;
     uint8_t switchKey[16];
@@ -135,7 +141,14 @@ int main(void)
 	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
 	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
 	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
-#endif // MILESTONE5
+
+
+
+
+
+
+
+
 
     /* Main application */
     while(!exitFlag) {
@@ -293,7 +306,7 @@ int main(void)
                         printf("Starting ECB encrypt...\r\n");
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
-#ifdef MILESTONE5
+
                         printf("Enter encryption key via switches, press enter to continue...\r\n");
 						inbyte();
 						fflush(stdin);
@@ -304,8 +317,8 @@ int main(void)
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
-#endif // MILESTONE5
-                        AES_init_ctx(&ctx, switchKey);
+
+						AES_init_ctx(&ctx, switchKey);
                         AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
@@ -316,7 +329,7 @@ int main(void)
                         printf("Starting ECB decrypt...\r\n");
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
-#ifdef MILESTONE5
+
                         printf("Enter encryption key via switches, press enter to continue...\r\n");
 						inbyte();
 						fflush(stdin);
@@ -327,8 +340,8 @@ int main(void)
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
-#endif // MILESTONE5
-                        AES_init_ctx(&ctx, switchKey);
+
+						AES_init_ctx(&ctx, switchKey);
                         AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead, 0);
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
