@@ -41,7 +41,6 @@ typedef uint8_t bool;
 #define AES_KEYLEN 16   // Key length in bytes
 #define AES_keyExpSize 176
 
-
 struct AES_ctx
 {
   uint8_t RoundKey[AES_keyExpSize];
