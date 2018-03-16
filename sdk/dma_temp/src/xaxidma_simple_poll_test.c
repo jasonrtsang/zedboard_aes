@@ -15,8 +15,13 @@
 #define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
 #define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
 
-#define MAX_PKT_LEN_WORDS	9
-#define MAX_PKT_LEN			MAX_PKT_LEN_WORDS*4
+#define MAX_PKT_LEN_WORDS_SEND	9
+#define MAX_PKT_LEN_SEND			MAX_PKT_LEN_WORDS_SEND*4
+
+#define MAX_PKT_LEN_WORDS_RCV	4
+#define MAX_PKT_LEN_RCV			MAX_PKT_LEN_WORDS_RCV*4
+
+
 
 #define NUMBER_OF_TRANSFERS	1
 
@@ -42,8 +47,8 @@ int main()
 	/* Run the poll example for simple transfer */
 	Status = XAxiDma_SimplePollExample(DMA_DEV_ID);
 
-	if (Status != XST_SUCCESS) {
-
+	if (Status != XST_SUCCESS)
+	{
 		xil_printf("XAxiDma_SimplePollExample: Failed\r\n");
 		return XST_FAILURE;
 	}
@@ -78,10 +83,14 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	int Index;
 	u32 *TxBufferPtr;
 	u32 *RxBufferPtr;
-	u32 Value;
+//	u32 Value;
 
 	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
 	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
+
+	u32 mode = 0xFFFFFFFF;
+	u32 inputData[4] = {0x3ad77bb4, 0x0d7a3660, 0xa89ecaf3, 0x2466ef97};
+	u32 key[4] = {0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c};
 
 	/* Initialize the XAxiDma device.
 	 */
@@ -109,29 +118,41 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
 						XAXIDMA_DMA_TO_DEVICE);
 
-	Value = 1;
+	// Set mode
+	TxBufferPtr[0] = mode;
 
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index ++) {
-			TxBufferPtr[Index] = Value;
-			Value++;
-	}
+	// Set data
+	TxBufferPtr[1] = inputData[0];
+	TxBufferPtr[2] = inputData[1];
+	TxBufferPtr[3] = inputData[2];
+	TxBufferPtr[4] = inputData[3];
+
+	// Set Key
+	TxBufferPtr[5] = key[0];
+	TxBufferPtr[6] = key[1];
+	TxBufferPtr[7] = key[2];
+	TxBufferPtr[8] = key[3];
+
+//	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index ++) {
+//			TxBufferPtr[Index] = (u32*)outputBuf[Index];
+//	}
 	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
 	 * is enabled
 	 */
-	Xil_DCacheFlushRange((u32)TxBufferPtr, MAX_PKT_LEN);
+	Xil_DCacheFlushRange((u32)TxBufferPtr, MAX_PKT_LEN_SEND);
 
 	for(Index = 0; Index < Tries; Index ++) {
 
 
 		Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) RxBufferPtr,
-					MAX_PKT_LEN, XAXIDMA_DEVICE_TO_DMA);
+					MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA);
 
 		if (Status != XST_SUCCESS) {
 			return XST_FAILURE;
 		}
 
 		Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) TxBufferPtr,
-					MAX_PKT_LEN, XAXIDMA_DMA_TO_DEVICE);
+					MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE);
 
 		if (Status != XST_SUCCESS) {
 			return XST_FAILURE;
@@ -184,15 +205,15 @@ static int CheckData(void)
 	/* Invalidate the DestBuffer before receiving the data, in case the
 	 * Data Cache is enabled
 	 */
-	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN);
+	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN_RCV);
 
 	xil_printf("Data sent: \r\n");
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index++) {
+	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index++) {
 		xil_printf("0x%X ", (unsigned int)TxPacket[Index]);
 	}
 	xil_printf("\r\n");
 	xil_printf("Data received: \r\n");
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS; Index++) {
+	for(Index = 0; Index < MAX_PKT_LEN_WORDS_RCV; Index++) {
 		xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
 	}
 	xil_printf("\r\n");

@@ -116,7 +116,7 @@ begin
         if ARESETN = '0' then
             num_of_reads   <= NUMBER_OF_INPUT_WORDS-1;
             num_of_writes  <= NUMBER_OF_OUTPUT_WORDS-1;
-            num_of_process <= NUMBER_OF_INPUT_WORDS-1;
+--            num_of_process <= NUMBER_OF_INPUT_WORDS-1;
             in_buff        <= ((others=> (others=>'0')));
 --            out_buff       <= ((others=> (others=>'0')));
             tlast          <= '0';

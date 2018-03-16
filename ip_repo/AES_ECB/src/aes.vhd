@@ -28,7 +28,7 @@ architecture Behavioral of aes is
 	signal key_state_array : WORD_ARRAY (0 to 3);
 	
 begin
-    key_state_array <= (k(3), k(2), k(1), k(0)); -- Hopefully this isn't backwards
+    key_state_array <= (k(0), k(1), k(2), k(3));
 
 	generate_key_schedule:
 	entity work.keyExpansion port map (inMode => mode, inKey => key_state_array, outRoundKey => key_schedule); -- Need to fix this, key expansion takes word array
