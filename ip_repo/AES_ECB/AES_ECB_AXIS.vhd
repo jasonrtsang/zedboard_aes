@@ -43,13 +43,13 @@ architecture arch_imp of AES_ECB_AXIS is
 
     -- Number of input/ output data packets
     constant NUMBER_OF_INPUT_WORDS  : natural := 9;
-    constant NUMBER_OF_OUTPUT_WORDS : natural := 9;
+    constant NUMBER_OF_OUTPUT_WORDS : natural := 4;
     -- Byte of zeros
     constant ZEROS : std_logic_vector(31 downto 0) := (others=>'0');
     constant ONES : std_logic_vector(31 downto 0) := (others=>'1');
 
     -- AXIS states
-    type AXIS_STATE_TYPE is (Idle, Read_Inputs, Processing, Fill_Output_Buffer, Send_Outputs, Write_Outputs);
+    type AXIS_STATE_TYPE is (Idle, Read_Inputs, Processing, Send_Outputs, Write_Outputs);
     signal axis_state : AXIS_STATE_TYPE;
 
     -- Counters to store the number inputs/ outputs written
@@ -74,8 +74,8 @@ architecture arch_imp of AES_ECB_AXIS is
     signal outState : STATE;
 	
 	-- AES Control signals
-	signal aes_reset : std_logic
-	signal aes_done : std_logic
+	signal aes_reset : std_logic;
+	signal aes_done : std_logic;
     
     -- Converting aes_mode back to 32-bit for testing
     --signal outMode : std_logic_vector(31 downto 0);
@@ -108,7 +108,7 @@ begin
     --outMode <= ZEROS when (aes_mode = ENCRYPTION) else ONES;
 	
 	-- AES port map
-	entity work.aes port map (clk => ACLK, reset => aes_reset, done => aes_done, mode => aes_mode, i => inState, k => inKey, o => outState);
+	aes : entity work.aes port map (clk => ACLK, reset => aes_reset, done => aes_done, mode => aes_mode, i => inState, k => inKey, o => outState);
 
     state_machine : process (ACLK) is
     begin
@@ -118,10 +118,10 @@ begin
             num_of_writes  <= NUMBER_OF_OUTPUT_WORDS-1;
             num_of_process <= NUMBER_OF_INPUT_WORDS-1;
             in_buff        <= ((others=> (others=>'0')));
-            out_buff       <= ((others=> (others=>'0')));
+--            out_buff       <= ((others=> (others=>'0')));
             tlast          <= '0';
             axis_state     <= Idle;
-			aes_reset      <= 1;
+			aes_reset      <= '1';
         else
             case axis_state is
                 when Idle =>
@@ -139,7 +139,7 @@ begin
                     if (S_AXIS_TLAST = '1' or num_of_reads = NUMBER_OF_INPUT_WORDS-1) then
                         -- Set starting address for output buffer
                         num_of_process <= 0;
-						aes_reset <= 1;
+						aes_reset <= '1';
                         axis_state <= Processing;
                     else
                         num_of_reads <= num_of_reads+1;
@@ -149,12 +149,16 @@ begin
 					-- Do the port map and actual processing of AES data here, once that is "complete" and we 
 					-- get a done signal, move on to fill output buffer
 					-- Turn off first round reset bit
-					aes_reset <= 0;
-					if (aes_done = 1) then
+					aes_reset <= '0';
+					if (aes_done = '1') then
 						-- Move to the next state, data is good
-						axis_state <= Fill_Output_Buffer;
+--						axis_state <= Fill_Output_Buffer;
+--						aes_reset <= '1';
+						num_of_writes <= 0;
+						axis_state <= Send_Outputs;
+					end if;
 
-                when Fill_Output_Buffer =>
+--                when Fill_Output_Buffer =>
                     -- *** 
                     -- Inject ECB IP connection here
                     -- 9 input words, 1 for AES_mode, 4 for state, 4 for round key
@@ -162,30 +166,25 @@ begin
                     -- ***
 					
 					-- Hold the AES module from processing
-					aes_reset <= 1;
+--					aes_reset <= '1';
 
                     -- Just copy input to states, then to output buffers, assuming processing is done at port map
-                    if (num_of_process = 0) then
-                        --out_buff(num_of_process) <= outMode;
-						-- Empty for now, will need to have a fancy way of sending the output when AES is done
-                        num_of_process <= num_of_process+1;
-                    elsif (num_of_process >= 1 and num_of_process <= 4) then
-                        out_buff(num_of_process) <= inState(num_of_process-1)(0) & inState(num_of_process-1)(1) & inState(num_of_process-1)(2) & inState(num_of_process-1)(3);
-                        num_of_process <= num_of_process+1;
-                    elsif (num_of_process >= 5 and num_of_process <= 7) then
-                        out_buff(num_of_process) <= inKey(num_of_process-5)(0) & inKey(num_of_process-5)(1) & inKey(num_of_process-5)(2) & inKey(num_of_process-5)(3);
-                        num_of_process <= num_of_process+1;
-                    elsif (num_of_process = 8) then
-                        out_buff(num_of_process) <= inKey(3)(0) & inKey(3)(1) & inKey(3)(2) & inKey(3)(3);
-                        num_of_writes <= 0;
-                        axis_state <= Send_Outputs;
-                    else
-                        axis_state <= Idle;
-                    end if;
+--                    out_buff(num_of_process) <= outMode;
+						-- Empty for now, will need to have a fancy way of sending the output when AES is don                    
+--                    if (num_of_process = NUMBER_OF_OUTPUT_WORDS-1) then
+--                        out_buff(num_of_process) <= inKey(3)(0) & inKey(3)(1) & inKey(3)(2) & inKey(3)(3);
+--                        num_of_writes <= 0;
+--                        axis_state <= Send_Outputs;
+--                    else
+--                        num_of_process <= num_of_process+1;
+--                    end if;
+                    
+--                    out_buff(0) <= outState(0)(0) & outState(0)(1) & outState(0)(2) & outState(0)(3);
+                    
 
                 when Send_Outputs =>
                     -- Send packet out of master to DMA
-                    tdata_out <= out_buff(num_of_writes);
+                    tdata_out <= outState(num_of_writes)(0) & outState(num_of_writes)(1) & outState(num_of_writes)(2) & outState(num_of_writes)(3);
                     axis_state <= Write_Outputs;
 
                 when Write_Outputs =>
@@ -193,6 +192,7 @@ begin
                         -- Signal DMA last packet
                         if (num_of_writes = NUMBER_OF_OUTPUT_WORDS-1) then
                             tlast <= '0';
+                            aes_reset <= '1'; -- Reset the AES module
                             axis_state <= Idle;
                         else
                             -- Toggle TLAST on last transmitted word
