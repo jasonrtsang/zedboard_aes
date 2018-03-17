@@ -1,8 +1,8 @@
 --Copyright 1986-2017 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------
 --Tool Version: Vivado v.2017.3 (win64) Build 2018833 Wed Oct  4 19:58:22 MDT 2017
---Date        : Wed Mar 14 19:15:38 2018
---Host        : DESKTOP-FP8IU9D running 64-bit major release  (build 9200)
+--Date        : Sat Mar 17 13:07:35 2018
+--Host        : ensc-pit-49 running 64-bit major release  (build 9200)
 --Command     : generate_target system_wrapper.bd
 --Design      : system_wrapper
 --Purpose     : IP block netlist
@@ -13,6 +13,7 @@ library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 entity system_wrapper is
   port (
+    DC_0 : out STD_LOGIC;
     DDR_addr : inout STD_LOGIC_VECTOR ( 14 downto 0 );
     DDR_ba : inout STD_LOGIC_VECTOR ( 2 downto 0 );
     DDR_cas_n : inout STD_LOGIC;
@@ -34,6 +35,12 @@ entity system_wrapper is
     FIXED_IO_ps_clk : inout STD_LOGIC;
     FIXED_IO_ps_porb : inout STD_LOGIC;
     FIXED_IO_ps_srstb : inout STD_LOGIC;
+    RES_0 : out STD_LOGIC;
+    SCLK_0 : out STD_LOGIC;
+    SDIN_0 : out STD_LOGIC;
+    VBAT_0 : out STD_LOGIC;
+    VDD_0 : out STD_LOGIC;
+    btns_5bits_tri_i : in STD_LOGIC_VECTOR ( 4 downto 0 );
     leds_8bits_tri_o : out STD_LOGIC_VECTOR ( 7 downto 0 );
     sws_8bits_tri_i : in STD_LOGIC_VECTOR ( 7 downto 0 )
   );
@@ -64,12 +71,20 @@ architecture STRUCTURE of system_wrapper is
     FIXED_IO_ps_clk : inout STD_LOGIC;
     FIXED_IO_ps_porb : inout STD_LOGIC;
     leds_8bits_tri_o : out STD_LOGIC_VECTOR ( 7 downto 0 );
-    sws_8bits_tri_i : in STD_LOGIC_VECTOR ( 7 downto 0 )
+    sws_8bits_tri_i : in STD_LOGIC_VECTOR ( 7 downto 0 );
+    btns_5bits_tri_i : in STD_LOGIC_VECTOR ( 4 downto 0 );
+    SDIN_0 : out STD_LOGIC;
+    SCLK_0 : out STD_LOGIC;
+    DC_0 : out STD_LOGIC;
+    RES_0 : out STD_LOGIC;
+    VBAT_0 : out STD_LOGIC;
+    VDD_0 : out STD_LOGIC
   );
   end component system;
 begin
 system_i: component system
      port map (
+      DC_0 => DC_0,
       DDR_addr(14 downto 0) => DDR_addr(14 downto 0),
       DDR_ba(2 downto 0) => DDR_ba(2 downto 0),
       DDR_cas_n => DDR_cas_n,
@@ -91,6 +106,12 @@ system_i: component system
       FIXED_IO_ps_clk => FIXED_IO_ps_clk,
       FIXED_IO_ps_porb => FIXED_IO_ps_porb,
       FIXED_IO_ps_srstb => FIXED_IO_ps_srstb,
+      RES_0 => RES_0,
+      SCLK_0 => SCLK_0,
+      SDIN_0 => SDIN_0,
+      VBAT_0 => VBAT_0,
+      VDD_0 => VDD_0,
+      btns_5bits_tri_i(4 downto 0) => btns_5bits_tri_i(4 downto 0),
       leds_8bits_tri_o(7 downto 0) => leds_8bits_tri_o(7 downto 0),
       sws_8bits_tri_i(7 downto 0) => sws_8bits_tri_i(7 downto 0)
     );
