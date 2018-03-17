@@ -44,7 +44,7 @@ static void IntrHandler(void *CallBackRef, int Bank, u32 Status);
 
 FRESULT f_findfirst (DIR* dp, FILINFO* fno, const TCHAR* path, TCHAR* pattern);	/* Find first file */
 FRESULT f_findnext (DIR* dp, FILINFO* fno, TCHAR* pat);							/* Find next file */
-void find_image_file();
+void list_all_files();
 
 /************************** Variable Definitions *****************************/
 #define FILENAME_LIMIT 32
@@ -67,10 +67,6 @@ static FIL fil; // Specified file input
 
 static XScuGic Intc; /* The Instance of the Interrupt Controller Driver */
 static XGpioPs Gpio; /* The driver instance for GPIO Device. */
-int toggle;//used to toggle the LED
-static void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId);
-static void IntrHandler(void *CallBackRef, int Bank, u32 Status);
-
 
 
 /*****************************************************************************
@@ -188,6 +184,7 @@ int main(void)
         printf(" Press '2' to Create TEST.BIN file\r\n");
         printf(" Press '3' to Enter CBC mode submenu\r\n");
         printf(" Press '4' to Enter ECB mode submenu\r\n");
+        printf(" Press '5' to List all files on SD card\r\n");
         printf(" Press any other key to exit\r\n");
         printf("~~~~~~~~~~~~~~~~~~~~~~~~ Menu Ends ~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
 
@@ -201,12 +198,6 @@ int main(void)
             printf("UH OH: Something went wrong with mounting the SD card...\r\n");
             return XST_FAILURE;
         }
-
-
-
-        find_image_file();
-
-
 
         /* Menu options */
         switch(menuChoice) {
@@ -312,19 +303,6 @@ int main(void)
 						dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
 						// Write the value back to the LEDS
 //						XGpio_DiscreteWrite(&gpioLeds, 2, dipValue);
-
-
-//						while(true) {
-//							dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
-//							for (i = 0; i < 16; i++) {
-//								switchKey[i] = keys[dipValue+i*16];
-//	                        }
-//							for (i = 0; i < 16; i++) {
-//								printf("%x",switchKey[i]);
-//	                        }
-//							printf("\n");
-//						}
-
 						for (i = 0; i < 16; i++) {
 							switchKey[i] = keys[dipValue+i*16];
                         }
@@ -378,6 +356,9 @@ int main(void)
                 }
                 break;
 
+			case '5':
+				list_all_files();
+				break;
             /* Any other key */
             default:
                 exitFlag = true;
@@ -584,6 +565,10 @@ void prompt_file_input(char *fileName)
     }
 }
 
+
+/************************** INTERRUPT FUNCTIONAILITIES *****************************/
+
+
 /*****************************************************************************/
 /**
 *
@@ -677,10 +662,7 @@ static void IntrHandler(void *CallBackRef, int Bank, u32 Status)
 }
 
 
-
-
-/* This option switches filtered directory read functions, f_findfirst() and
-/  f_findnext(). (0:Disable, 1:Enable 2:Enable with matching altname[] too) */
+/************************** FATFS FILE LIST PORT http://elm-chan.org/fsw/ff/doc/findfirst.html *****************************/
 
 
 
@@ -822,40 +804,33 @@ static void IntrHandler(void *CallBackRef, int Bank, u32 Status)
 					0xA9,0xAA,0xAC,0xAD,0xB5,0xB6,0xB7,0xB8,0xBD,0xBE,0xC6,0xC7,0xCF,0xCF,0xD0,0xEF, \
 					0xF0,0xF1,0xD1,0xD2,0xD3,0xF5,0xD4,0xF7,0xF8,0xF9,0xD5,0x96,0x95,0x98,0xFE,0xFF}
 
-
 /* DBCS code range |----- 1st byte -----|  |----------- 2nd byte -----------| */
 #define TBL_DC932 {0x81, 0x9F, 0xE0, 0xFC, 0x40, 0x7E, 0x80, 0xFC, 0x00, 0x00}
 #define TBL_DC936 {0x81, 0xFE, 0x00, 0x00, 0x40, 0x7E, 0x80, 0xFE, 0x00, 0x00}
 #define TBL_DC949 {0x81, 0xFE, 0x00, 0x00, 0x41, 0x5A, 0x61, 0x7A, 0x81, 0xFE}
 #define TBL_DC950 {0x81, 0xFE, 0x00, 0x00, 0x40, 0x7E, 0xA1, 0xFE, 0x00, 0x00}
 
-
 /* Macros for table definitions */
 #define MERGE_2STR(a, b) a ## b
 #define MKCVTBL(hd, cp) MERGE_2STR(hd, cp)
-
 
 #define IsLower(c)	(((c)>=(BYTE)'a')&&((c)<=(BYTE)'z'))
 /*--------------------------------*/
 /* Code conversion tables         */
 /*--------------------------------*/
 
-#if FF_CODE_PAGE == 0		/* Run-time code page configuration */
 #define CODEPAGE CodePage
 static const BYTE *ExCvt, *DbcTbl;	/* Pointer to current SBCS up-case table and DBCS code range table below */
-
-#endif
 
 /* Test if the character is DBC 1st byte */
 static
 int dbc_1st (BYTE c)
 {
-#if FF_CODE_PAGE == 0		/* Variable code page */
+	/* Variable code page */
 	if (DbcTbl && c >= DbcTbl[0]) {
 		if (c <= DbcTbl[1]) return 1;					/* 1st byte range 1 */
 		if (c >= DbcTbl[2] && c <= DbcTbl[3]) return 1;	/* 1st byte range 2 */
 	}
-#endif
 	return 0;
 }
 
@@ -863,19 +838,16 @@ int dbc_1st (BYTE c)
 static
 int dbc_2nd (BYTE c)
 {
-#if FF_CODE_PAGE == 0		/* Variable code page */
+	/* Variable code page */
 	if (DbcTbl && c >= DbcTbl[4]) {
 		if (c <= DbcTbl[5]) return 1;					/* 2nd byte range 1 */
 		if (c >= DbcTbl[6] && c <= DbcTbl[7]) return 1;	/* 2nd byte range 2 */
 		if (c >= DbcTbl[8] && c <= DbcTbl[9]) return 1;	/* 2nd byte range 3 */
 	}
-
-#endif
 	return 0;
 }
 
 
-#if FF_FS_MINIMIZE <= 1
 /*-----------------------------------------------------------------------*/
 /* Pattern matching                                                      */
 /*-----------------------------------------------------------------------*/
@@ -887,17 +859,13 @@ DWORD get_achar (		/* Get a character and advances ptr */
 {
 	DWORD chr;
 
-								/* ANSI/OEM input */
+	/* ANSI/OEM input */
 	chr = (BYTE)*(*ptr)++;				/* Get a byte */
 	if (IsLower(chr)) chr -= 0x20;		/* To upper ASCII char */
-	#if FF_CODE_PAGE == 0
-		if (ExCvt && chr >= 0x80) chr = ExCvt[chr - 0x80];	/* To upper SBCS extended char */
-	#endif
-	#if FF_CODE_PAGE == 0 || FF_CODE_PAGE >= 900
-		if (dbc_1st((BYTE)chr)) {	/* Get DBC 2nd byte if needed */
-			chr = dbc_2nd((BYTE)**ptr) ? chr << 8 | (BYTE)*(*ptr)++ : 0;
-		}
-	#endif
+	if (ExCvt && chr >= 0x80) chr = ExCvt[chr - 0x80];	/* To upper SBCS extended char */
+	if (dbc_1st((BYTE)chr)) {	/* Get DBC 2nd byte if needed */
+		chr = dbc_2nd((BYTE)**ptr) ? chr << 8 | (BYTE)*(*ptr)++ : 0;
+	}
 	return chr;
 }
 
@@ -942,8 +910,6 @@ int pattern_matching (	/* 0:not matched, 1:matched */
 	return 0;
 }
 
-#endif /* FF_FS_MINIMIZE <= 1 */
-
 /*-----------------------------------------------------------------------*/
 /* Find Next File                                                        */
 /*-----------------------------------------------------------------------*/
@@ -980,7 +946,6 @@ FRESULT f_findfirst (
 {
 	FRESULT res;
 
-//	pat = pattern;		/* Save pointer to pattern string */
 	res = f_opendir(dp, path);		/* Open the target directory */
 	if (res == FR_OK) {
 		res = f_findnext(dp, fno, pattern);	/* Find the first item */
@@ -990,7 +955,7 @@ FRESULT f_findfirst (
 
 
 /* Search a directory for objects and display it */
-void find_image_file (void)
+void list_all_files (void)
 {
     FRESULT fr;     /* Return value */
     DIR dj;         /* Directory search object */
