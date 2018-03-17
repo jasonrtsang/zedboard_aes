@@ -27,7 +27,7 @@
 #define DELAY 10000
 
 /* 	Define the base memory address of the ZedboardOLED IP core */
-#define OLED_BASE XPAR_ZEDBOARDOLED_0_S00_AXI_BASEADDR
+#define OLED_BASE XPAR_AMA142_OLED_AXI_S00_AXI_BASEADDR
 
 /*  driver functions for ZedboardOLED IP core */
 /*****************************************************************************/
