@@ -27,9 +27,33 @@
 #include "xplatform_info.h"
 #include "xsdps.h"
 
+/* DMA Headers */
+#include "xaxidma.h"
+
 #include "xbasic_types.h"
 
 /************************** Defines Prototypes *******************************/
+/*
+* Device hardware build related constants.
+ */
+
+#define DMA_DEV_ID		XPAR_AXIDMA_0_DEVICE_ID
+
+#define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
+
+#define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
+#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
+#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
+
+#define MAX_PKT_LEN_WORDS_SEND	9
+#define MAX_PKT_LEN_SEND			MAX_PKT_LEN_WORDS_SEND*4
+
+#define MAX_PKT_LEN_WORDS_RCV	4
+#define MAX_PKT_LEN_RCV			MAX_PKT_LEN_WORDS_RCV*4
+
+
+
+#define NUMBER_OF_TRANSFERS	1
 
 /************************** Function Prototypes ******************************/
 void prompt_file_input(char *fileName);
@@ -41,6 +65,11 @@ bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 void My_XGpioPs_IntrHandler(XGpioPs *InstancePtr);
 static void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId);
 static void IntrHandler(void *CallBackRef, int Bank, u32 Status);
+
+int XAxiDma_Init(u16 DeviceId);
+int XAxiDma_SimplePollExample(u16 DeviceId);
+int XAxiDma_send_aes_state(u32 *inputBuf_ptr, u32 *outputBuf_ptr, u8 *key, bool mode);
+static int CheckData(u8 *inBuf, u8 *outBuf, int size_of_data_bytes);
 
 /************************** Variable Definitions *****************************/
 #define FILENAME_LIMIT 32
@@ -66,6 +95,8 @@ static XGpioPs Gpio; /* The driver instance for GPIO Device. */
 int toggle;//used to toggle the LED
 static void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId);
 static void IntrHandler(void *CallBackRef, int Bank, u32 Status);
+
+XAxiDma AxiDma;
 
 /*****************************************************************************
 *
@@ -119,6 +150,7 @@ int main(void)
     /* Universally used variables */
     int i, menuChoice, modeChoice;
     uint32_t fileSizeRead;
+    int Index = 0;
 
     const TCHAR *Path = "0:/"; // Base directory of SD
     static FATFS fatfs; // File system format
@@ -127,6 +159,7 @@ int main(void)
     char fileNameOut[FILENAME_LIMIT]; // Output file name
 
     static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
+	static uint8_t outputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
 
     struct AES_ctx ctx; // Context
 
@@ -167,6 +200,9 @@ int main(void)
 
     SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
+    // Initialize the DMA
+    XAxiDma_Init(DMA_DEV_ID);
+
     /* Main application */
     while(!exitFlag) {
     	fflush(stdin);
@@ -179,7 +215,6 @@ int main(void)
         printf(" Press '2' to Create TEST.BIN file\r\n");
         printf(" Press '3' to Enter CBC mode submenu\r\n");
         printf(" Press '4' to Enter ECB mode submenu\r\n");
-        printf(" Press '5' to Byte compare two files\r\n");
         printf(" Press any other key to exit\r\n");
         printf("~~~~~~~~~~~~~~~~~~~~~~~~ Menu Ends ~~~~~~~~~~~~~~~~~~~~~~~~\r\n");
 
@@ -302,11 +337,46 @@ int main(void)
 							switchKey[i] = keys[dipValue+i*16];
                         }
 						printf("Running ECB encryption...\r\n");
+						
+
+
+						// Let's print out the input data first
+						xil_printf("Data to encrypt: \r\n");
+						for(Index = 0; Index < fileSizeRead; Index++) {
+							xil_printf("0x%X ", inputBuf[Index]);
+						}
+						xil_printf("\r\n");
+
+
+
+
+						// Temp pointers that the for loop can move around as it wants
+						u32 *outputBuf_ptr = (u32*)outputBuf;
+						u32 *inputBuf_ptr = (u32*)inputBuf;
+						
+						for (i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+						{
+							XAxiDma_send_aes_state(inputBuf_ptr, outputBuf_ptr, &switchKey, false);
+							inputBuf_ptr += AES_BLOCKLEN;
+							outputBuf_ptr += AES_BLOCKLEN;
+						}
+						
+						CheckData((u8*)inputBuf, (u8*)outputBuf, fileSizeRead);
+						
 						AES_init_ctx(&ctx, switchKey);
                         if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
                         	printf("ECB encryption CANCELED\r\n");
                         	break;
                         }
+
+                        // Now let's see what the data looks like after we're done
+                        // Let's print out the input data first
+						xil_printf("Encrypted Data (SW): \r\n");
+						for(Index = 0; Index < fileSizeRead; Index++) {
+							xil_printf("0x%X ", inputBuf[Index]);
+						}
+						xil_printf("\r\n");
+						
 
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
@@ -646,6 +716,157 @@ static void IntrHandler(void *CallBackRef, int Bank, u32 Status)
 {
     XGpioPs *Gpioint = (XGpioPs *)CallBackRef;
     XGpioPs_IntrClearPin(Gpioint, pbsw);
-    printf("****button pressed****\n\r");
     cancelFlag = true;
 }
+
+// Initialize DMA
+int XAxiDma_Init(u16 DeviceId)
+{
+	XAxiDma_Config *CfgPtr;
+	int Status;
+//	int Tries = NUMBER_OF_TRANSFERS;
+//	int Index;
+//	u32 *TxBufferPtr;
+//	u32 *RxBufferPtr;
+//	u32 Value;
+
+//	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
+//	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
+
+	/* Initialize the XAxiDma device.
+	 */
+	CfgPtr = XAxiDma_LookupConfig(DeviceId);
+	if (!CfgPtr) {
+		xil_printf("No config found for %d\r\n", DeviceId);
+		return XST_FAILURE;
+	}
+
+	Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
+	if (Status != XST_SUCCESS) {
+		xil_printf("Initialization failed %d\r\n", Status);
+		return XST_FAILURE;
+	}
+
+	if(XAxiDma_HasSg(&AxiDma)){
+		xil_printf("Device configured as SG mode \r\n");
+		return XST_FAILURE;
+	}
+
+	/* Disable interrupts, we use polling mode
+	 */
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+						XAXIDMA_DEVICE_TO_DMA);
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+						XAXIDMA_DMA_TO_DEVICE);
+						
+	return XST_SUCCESS;
+}
+
+int XAxiDma_send_aes_state(u32 *inputBuf_ptr, u32 *outputBuf_ptr, u8 *key, bool mode)
+{
+	int Status = 0;
+	int Index = 0;
+	
+	// Need to create the 9x32 bit output to send
+	u32 *combinedInput = malloc(sizeof(u32) * MAX_PKT_LEN_WORDS_SEND);
+	if (mode)
+	{
+		// Set to decrypt
+		memset(&(combinedInput[0]), 0xFF, sizeof(u32));
+	}
+	else
+	{
+		// Set to encrypt
+		memset(&(combinedInput[0]), 0x00, sizeof(u32));
+	}
+	memcpy(&(combinedInput[1]), inputBuf_ptr, (sizeof(u32) * 4));
+	memcpy(&(combinedInput[5]), key, (16));
+	
+	// We are going to see if the things I'm sending are correct
+	xil_printf("Output buffer BEFORE: \r\n");
+	for(Index = 0; Index < 4; Index++) {
+		xil_printf("0x%X ", outputBuf_ptr[Index]);
+	}
+	xil_printf("\r\n");
+
+	Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) outputBuf_ptr,
+					MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA);
+
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) combinedInput,
+				MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE);
+
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	while (XAxiDma_Busy(&AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
+			/* Wait */
+	}
+	while (XAxiDma_Busy(&AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
+			/* Wait */
+	}
+
+	// We are going to see if the things I'm sending are correct
+	xil_printf("Output buffer AFTER: \r\n");
+	for(Index = 0; Index < 4; Index++) {
+		xil_printf("0x%X ", outputBuf_ptr[Index]);
+	}
+	xil_printf("\r\n");
+
+//	Status = CheckData();
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+	// Looks like we need this
+	Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
+	free(combinedInput);
+	return XST_SUCCESS;
+}
+
+/*****************************************************************************/
+/*
+*
+* This function checks data buffer after the DMA transfer is finished.
+*
+* @param	None
+*
+* @return
+*		- XST_SUCCESS if validation is successful.
+*		- XST_FAILURE otherwise.
+*
+* @note		None.
+*
+******************************************************************************/
+static int CheckData(u8 *inBuf, u8 *outBuf, int size_of_data_bytes)  // This needs to be changed to deal with the input/output buffer we are now using
+{
+//	u32 *RxPacket;
+//	u32 *TxPacket;
+	int Index = 0;
+
+//	RxPacket = (u32 *) RX_BUFFER_BASE;
+//	TxPacket = (u32 *) TX_BUFFER_BASE;
+
+	/* Invalidate the DestBuffer before receiving the data, in case the
+	 * Data Cache is enabled
+	 */
+//	Xil_DCacheInvalidateRange((u32)outBuf, size_of_data_bytes);
+
+	xil_printf("Data sent: \r\n");
+	for(Index = 0; Index < size_of_data_bytes; Index++) {
+		xil_printf("0x%X ", inBuf[Index]);
+	}
+	xil_printf("\r\n");
+	xil_printf("Data received: \r\n");
+	for(Index = 0; Index < size_of_data_bytes; Index++) {
+		xil_printf("0x%X ", outBuf[Index]);
+	}
+	xil_printf("\r\n");
+
+	return XST_SUCCESS;
+}
+

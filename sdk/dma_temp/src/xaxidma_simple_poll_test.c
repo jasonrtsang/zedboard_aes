@@ -27,8 +27,9 @@
 
 /************************** Function Prototypes ******************************/
 
-int XAxiDma_SimplePollExample(u16 DeviceId);
+int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num);
 static int CheckData(void);
+int XAxiDma_Init(u16 DeviceId);
 
 /************************** Variable Definitions *****************************/
 /*
@@ -41,11 +42,15 @@ int main()
 {
 	int Status;
 
+//	memset((u32*)RX_BUFFER_BASE, 0x00, 4);
+
     init_platform();
 	xil_printf("\r\n--- Entering main() --- \r\n");
+	XAxiDma_Init(DMA_DEV_ID);
 
 	/* Run the poll example for simple transfer */
-	Status = XAxiDma_SimplePollExample(DMA_DEV_ID);
+	Status = XAxiDma_SimplePollExample(DMA_DEV_ID, 0);
+	Status = XAxiDma_SimplePollExample(DMA_DEV_ID, 1);
 
 	if (Status != XST_SUCCESS)
 	{
@@ -75,7 +80,7 @@ int main()
 *
 *
 ******************************************************************************/
-int XAxiDma_SimplePollExample(u16 DeviceId)
+int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 {
 	XAxiDma_Config *CfgPtr;
 	int Status;
@@ -88,44 +93,80 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
 	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
 
-	u32 mode = 0xFFFFFFFF;
-	u32 inputData[4] = {0x3ad77bb4, 0x0d7a3660, 0xa89ecaf3, 0x2466ef97};
+	u32 mode_1 = 0xFFFFFFFF;
+	u32 inputData_1[4] = {0x3ad77bb4, 0x0d7a3660, 0xa89ecaf3, 0x2466ef97};
+
+	u32 mode = 0x00000000;
+	u32 inputData[4] = {0x6bc1bee2, 0x2e409f96, 0xe93d7e11, 0x7393172a};
+
+
 	u32 key[4] = {0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c};
 
 	/* Initialize the XAxiDma device.
 	 */
-	CfgPtr = XAxiDma_LookupConfig(DeviceId);
-	if (!CfgPtr) {
-		xil_printf("No config found for %d\r\n", DeviceId);
-		return XST_FAILURE;
-	}
+//	CfgPtr = XAxiDma_LookupConfig(DeviceId);
+//	if (!CfgPtr) {
+//		xil_printf("No config found for %d\r\n", DeviceId);
+//		return XST_FAILURE;
+//	}
+//
+//	Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
+//	if (Status != XST_SUCCESS) {
+//		xil_printf("Initialization failed %d\r\n", Status);
+//		return XST_FAILURE;
+//	}
+//
+//	if(XAxiDma_HasSg(&AxiDma)){
+//		xil_printf("Device configured as SG mode \r\n");
+//		return XST_FAILURE;
+//	}
+//
+//	/* Disable interrupts, we use polling mode
+//	 */
+//	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+//						XAXIDMA_DEVICE_TO_DMA);
+//	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+//						XAXIDMA_DMA_TO_DEVICE);
 
-	Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
-	if (Status != XST_SUCCESS) {
-		xil_printf("Initialization failed %d\r\n", Status);
-		return XST_FAILURE;
+	// We are going to see if the things I'm sending are correct
+//	for(Index = 0; Index < 4; Index++) {
+//		RxBufferPtr[Index] = 0;
+//	}
+	xil_printf("Output buffer BEFORE: \r\n");
+	for(Index = 0; Index < 4; Index++) {
+		xil_printf("0x%X ", RxBufferPtr[Index]);
 	}
-
-	if(XAxiDma_HasSg(&AxiDma)){
-		xil_printf("Device configured as SG mode \r\n");
-		return XST_FAILURE;
-	}
-
-	/* Disable interrupts, we use polling mode
-	 */
-	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
-						XAXIDMA_DEVICE_TO_DMA);
-	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
-						XAXIDMA_DMA_TO_DEVICE);
+	xil_printf("\r\n");
 
 	// Set mode
-	TxBufferPtr[0] = mode;
+	if (run_num == 0)
+	{
+		TxBufferPtr[0] = mode;
+	}
+	else
+	{
+		TxBufferPtr[0] = mode_1;
+	}
 
 	// Set data
-	TxBufferPtr[1] = inputData[0];
-	TxBufferPtr[2] = inputData[1];
-	TxBufferPtr[3] = inputData[2];
-	TxBufferPtr[4] = inputData[3];
+	if (run_num == 0)
+	{
+		TxBufferPtr[1] = inputData[0];
+		TxBufferPtr[2] = inputData[1];
+		TxBufferPtr[3] = inputData[2];
+		TxBufferPtr[4] = inputData[3];
+	}
+	else
+	{
+		TxBufferPtr[1] = inputData_1[0];
+		TxBufferPtr[2] = inputData_1[1];
+		TxBufferPtr[3] = inputData_1[2];
+		TxBufferPtr[4] = inputData_1[3];
+	}
+//	TxBufferPtr[1] = inputData[0];
+//	TxBufferPtr[2] = inputData[1];
+//	TxBufferPtr[3] = inputData[2];
+//	TxBufferPtr[4] = inputData[3];
 
 	// Set Key
 	TxBufferPtr[5] = key[0];
@@ -133,13 +174,12 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 	TxBufferPtr[7] = key[2];
 	TxBufferPtr[8] = key[3];
 
-//	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index ++) {
-//			TxBufferPtr[Index] = (u32*)outputBuf[Index];
-//	}
 	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
 	 * is enabled
 	 */
 	Xil_DCacheFlushRange((u32)TxBufferPtr, MAX_PKT_LEN_SEND);
+
+
 
 	for(Index = 0; Index < Tries; Index ++) {
 
@@ -164,6 +204,13 @@ int XAxiDma_SimplePollExample(u16 DeviceId)
 		while (XAxiDma_Busy(&AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
 				/* Wait */
 		}
+
+		// We are going to see if the things I'm sending are correct
+		xil_printf("Output buffer AFTER: \r\n");
+		for(Index = 0; Index < 4; Index++) {
+			xil_printf("0x%X ", RxBufferPtr[Index]);
+		}
+		xil_printf("\r\n");
 
 		Status = CheckData();
 		if (Status != XST_SUCCESS) {
@@ -217,6 +264,49 @@ static int CheckData(void)
 		xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
 	}
 	xil_printf("\r\n");
+
+	return XST_SUCCESS;
+}
+
+// Initialize DMA
+int XAxiDma_Init(u16 DeviceId)
+{
+	XAxiDma_Config *CfgPtr;
+	int Status;
+//	int Tries = NUMBER_OF_TRANSFERS;
+//	int Index;
+//	u32 *TxBufferPtr;
+//	u32 *RxBufferPtr;
+//	u32 Value;
+
+//	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
+//	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
+
+	/* Initialize the XAxiDma device.
+	 */
+	CfgPtr = XAxiDma_LookupConfig(DeviceId);
+	if (!CfgPtr) {
+		xil_printf("No config found for %d\r\n", DeviceId);
+		return XST_FAILURE;
+	}
+
+	Status = XAxiDma_CfgInitialize(&AxiDma, CfgPtr);
+	if (Status != XST_SUCCESS) {
+		xil_printf("Initialization failed %d\r\n", Status);
+		return XST_FAILURE;
+	}
+
+	if(XAxiDma_HasSg(&AxiDma)){
+		xil_printf("Device configured as SG mode \r\n");
+		return XST_FAILURE;
+	}
+
+	/* Disable interrupts, we use polling mode
+	 */
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+						XAXIDMA_DEVICE_TO_DMA);
+	XAxiDma_IntrDisable(&AxiDma, XAXIDMA_IRQ_ALL_MASK,
+						XAXIDMA_DMA_TO_DEVICE);
 
 	return XST_SUCCESS;
 }
