@@ -17,18 +17,28 @@
 #include "xil_exception.h"
 #include "xscugic.h"
 
-#define NUMINLIST 5
+#define NUMINLIST 6
+
+typedef uint8_t bool;
+#define true 1
+#define false 0
+
+
+/************************** Function Prototypes ******************************/
+void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index);
+
+void format_line(char inputLine[], char *outputLine, bool cursor);
+
+
+
 
 int main(void){
-	static XGpio GPIOInstance_Ptr;
-	int xStatus;
-	u32 Readstatus=0,OldReadStatus=0;
-	int exit_flag,choice,internal_choice;
-	init_platform();
+	static XGpio gpioBtn;
+	int btnClick, i = 0;
 
-	char *test_array[6];
-	char *print_index;
+	char* string_fileSelection = "File Selection:";
 
+	char* test_array[NUMINLIST];
 	test_array[0] = "ALPHA";
 	test_array[1] = "BETA";
 	test_array[2] = "CORSA";
@@ -37,31 +47,24 @@ int main(void){
 	test_array[5] = "FFUCK";
 
 
-	int i;
-	int wrapAround;
+/* START */
+	print("##### Application Starts #####\r\n");
+	/* Initialization */
+	init_platform();
+	/* D-pad buttons */
+	if (XST_SUCCESS != XGpio_Initialize(&gpioBtn, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
+		printf("UH OH: BTN5 GPIO initialization failed\r\n");
+	}
+	XGpio_SetDataDirection(&gpioBtn, 1, 1);
 
-	print("##### Application Starts #####\n\r");
-	print("\r\n");
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//Step-1 :AXI GPIO Initialization
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	xStatus = XGpio_Initialize(&GPIOInstance_Ptr,XPAR_BTN_GPIO_AXI_DEVICE_ID);
-	if(XST_SUCCESS != xStatus)
-	print("GPIO INIT FAILED\n\r");
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	//Step-2 :AXI GPIO Set the Direction
-	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	XGpio_SetDataDirection(&GPIOInstance_Ptr, 1,1);
-
+	/* Initial screen */
 	clear();
-
-	i = 0;
-
+	print_message("File Selection", 0);
 	if (i < NUMINLIST) {
-		print_message(test_array[i], 1);
+		print_message(test_array[i], 2);
 	}
 	if (i+1 < NUMINLIST) {
-		print_message(test_array[i+1], 2);
+		print_message(test_array[i+1], 3);
 	}
 	if (i+2 < NUMINLIST) {
 		print_message(test_array[i+2], 3);
@@ -69,8 +72,8 @@ int main(void){
 
 	while(1)
 	{
-		Readstatus = XGpio_DiscreteRead(&GPIOInstance_Ptr, 1);
-		switch (Readstatus) {
+		btnClick = XGpio_DiscreteRead(&gpioBtn, 1);
+		switch (btnClick) {
 			case 4: // left
 //				clear();
 //				print_message("left",0);
@@ -80,17 +83,8 @@ int main(void){
 				if(i > 0 && i < NUMINLIST) {
 					i-=1;
 				}
-				if (i < NUMINLIST) {
-					print_message(test_array[i], 1);
-				}
-				if (i+1 < NUMINLIST) {
-					print_message(test_array[i+1], 2);
-				}
-				if (i+2 < NUMINLIST) {
-					print_message(test_array[i+2], 3);
-				}
+				refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
 				usleep(250000);
-				print_message("up",0);
 				break;
 			case 8: // right
 //				clear();
@@ -101,18 +95,9 @@ int main(void){
 				if(i >= 0 && i < NUMINLIST-1) {
 					i+=1;
 				}
-				if (i < NUMINLIST) {
-					print_index = "> " + test_array[i];
-					print_message(test_array[i], 1);
-				}
-				if (i+1 < NUMINLIST) {
-					print_message(test_array[i+1], 2);
-				}
-				if (i+2 < NUMINLIST) {
-					print_message(test_array[i+2], 3);
-				}
+				refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
+
 				usleep(250000); // 0.25 seconds delay
-				print_message("down",0);
 				break;
 			case 1: // center
 //				clear();
@@ -120,14 +105,56 @@ int main(void){
 				break;
 			default:
 				break;
-
-
-
 		}
 	}
-
 	return (1);
-
 }
 
+void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index) {
+
+	char* cursorLine = printLines[index];
+	char* printLine;
+	char formattedLine[16];
+
+	clear();
+
+	print_message(menuLine, 0);
+
+	if (index < numOfLines) {
+		format_line(cursorLine, formattedLine, true);
+		print_message(formattedLine, 1);
+	}
+	if (index+1 < numOfLines) {
+		printLine = printLines[index+1];
+		format_line(printLine, formattedLine, false);
+		print_message(formattedLine, 2);
+	}
+	if (index+2 < numOfLines) {
+		printLine = printLines[index+2];
+		format_line(printLine, formattedLine, false);
+		print_message(formattedLine, 3);
+	}
+}
+
+void format_line(char inputLine[], char *outputLine, bool cursor) {
+   int i = 0, length = 0;
+
+   if (cursor) {
+	   outputLine[0] = '>';
+	   outputLine[1] = ' ';
+   } else {
+	   outputLine[0] = ' ';
+	   outputLine[1] = ' ';
+   }
+
+   while (inputLine[length] != '\0') {
+	   length++;
+   }
+
+   while (i < 14 && i < length) {
+	   outputLine[i+2] = inputLine[i];
+	   i++;
+   }
+   outputLine[i+2] = '\0';
+}
 
