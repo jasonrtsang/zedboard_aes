@@ -12,8 +12,8 @@
 #define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
 
 #define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
-#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
-#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
+#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00700000) // buffer ~1.5MB
+#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x00FFFFFF) // buffer ~1.5MB
 
 #define MAX_PKT_LEN_WORDS_SEND	9
 #define MAX_PKT_LEN_SEND			MAX_PKT_LEN_WORDS_SEND*4
@@ -82,7 +82,7 @@ int main()
 ******************************************************************************/
 int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 {
-	XAxiDma_Config *CfgPtr;
+//	XAxiDma_Config *CfgPtr;
 	int Status;
 	int Tries = NUMBER_OF_TRANSFERS;
 	int Index;
@@ -92,6 +92,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 
 	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
 	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
+
 
 	u32 mode_1 = 0xFFFFFFFF;
 	u32 inputData_1[4] = {0x3ad77bb4, 0x0d7a3660, 0xa89ecaf3, 0x2466ef97};
@@ -132,11 +133,11 @@ int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 //	for(Index = 0; Index < 4; Index++) {
 //		RxBufferPtr[Index] = 0;
 //	}
-	xil_printf("Output buffer BEFORE: \r\n");
-	for(Index = 0; Index < 4; Index++) {
-		xil_printf("0x%X ", RxBufferPtr[Index]);
-	}
-	xil_printf("\r\n");
+//	xil_printf("Output buffer BEFORE: \r\n");
+//	for(Index = 0; Index < 4; Index++) {
+//		xil_printf("0x%X ", RxBufferPtr[Index]); // Breaking here, can't read this memory
+//	}
+//	xil_printf("\r\n");
 
 	// Set mode
 	if (run_num == 0)
@@ -206,17 +207,25 @@ int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 		}
 
 		// We are going to see if the things I'm sending are correct
-		xil_printf("Output buffer AFTER: \r\n");
-		for(Index = 0; Index < 4; Index++) {
-			xil_printf("0x%X ", RxBufferPtr[Index]);
-		}
-		xil_printf("\r\n");
 
-		Status = CheckData();
 		if (Status != XST_SUCCESS) {
 			return XST_FAILURE;
 		}
 
+//		xil_printf("Output buffer BEFORE: \r\n");
+//		for(Index = 0; Index < 4; Index++) {
+//			xil_printf("0x%X ", RxBufferPtr[Index]);
+//		}
+//		xil_printf("\r\n");
+
+		Xil_DCacheInvalidateRange((u32)RxBufferPtr, MAX_PKT_LEN_RCV);
+
+//		xil_printf("Output buffer AFTER: \r\n");
+//		for(Index = 0; Index < 4; Index++) {
+//			xil_printf("0x%X ", RxBufferPtr[Index]);
+//		}
+//		xil_printf("\r\n");
+		Status = CheckData();
 	}
 
 	/* Test finishes successfully
@@ -252,7 +261,7 @@ static int CheckData(void)
 	/* Invalidate the DestBuffer before receiving the data, in case the
 	 * Data Cache is enabled
 	 */
-	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN_RCV);
+//	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN_RCV);
 
 	xil_printf("Data sent: \r\n");
 	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index++) {

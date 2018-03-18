@@ -39,11 +39,18 @@
 
 #define DMA_DEV_ID		XPAR_AXIDMA_0_DEVICE_ID
 
+//#define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
+//
+//#define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
+//#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
+//#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
+
 #define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
 
 #define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
-#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00300000)
-#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x004FFFFF)
+#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00700000) // buffer ~1.5MB
+#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x00DFFFFF) // buffer ~1.5MB
+#define SCRATCHPAD          (MEM_BASE_ADDR + 0x00E00000)
 
 #define MAX_PKT_LEN_WORDS_SEND	9
 #define MAX_PKT_LEN_SEND			MAX_PKT_LEN_WORDS_SEND*4
@@ -158,8 +165,8 @@ int main(void)
     char fileNameIn[FILENAME_LIMIT] = ""; // Specified file input name
     char fileNameOut[FILENAME_LIMIT]; // Output file name
 
-    static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
-	static uint8_t outputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
+//    static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
+//	static uint8_t outputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
 
     struct AES_ctx ctx; // Context
 
@@ -266,16 +273,16 @@ int main(void)
                         prompt_file_input(fileNameIn);
                         /* Read the current specified file */
                         fileSizeRead = 0;
-                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                        if(!read_from_file(fileNameIn, (u8*)TX_BUFFER_BASE, &fileSizeRead)) {
                             break;
                         }
                         printf("> Name encrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv_key);
-                        AES_CBC_encrypt_buffer(&ctx, inputBuf, fileSizeRead);
+                        AES_CBC_encrypt_buffer(&ctx, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
-                        write_to_file(fileNameOut, inputBuf, fileSizeRead);
+                        write_to_file(fileNameOut, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Done!\r\n");
                         break;
                     case '2': /* Decrypt */
@@ -284,16 +291,16 @@ int main(void)
                         prompt_file_input(fileNameIn);
                         /* Read the current specified file */
                         fileSizeRead = 0;
-                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                        if(!read_from_file(fileNameIn, (u8*)TX_BUFFER_BASE, &fileSizeRead)) {
                             break;
                         }
                         printf("> Name decrypted file output\r\n");
                         prompt_file_input(fileNameOut);
                         AES_init_ctx_iv(&ctx, switchKey, iv_key);
-                        AES_CBC_decrypt_buffer(&ctx, inputBuf, fileSizeRead);
+                        AES_CBC_decrypt_buffer(&ctx, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
-                        write_to_file(fileNameOut, inputBuf, fileSizeRead);
+                        write_to_file(fileNameOut, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Done!\r\n");
                         break;
                     default:
@@ -320,7 +327,7 @@ int main(void)
                         prompt_file_input(fileNameIn);
                         /* Read the current specified file */
                         fileSizeRead = 0;
-                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                        if(!read_from_file(fileNameIn, (u8*)TX_BUFFER_BASE, &fileSizeRead)) {
                             break;
                         }
                         printf("> Name encrypted file output\r\n");
@@ -338,12 +345,14 @@ int main(void)
                         }
 						printf("Running ECB encryption...\r\n");
 						
+						u8* RxPacket = (u8 *) RX_BUFFER_BASE;
+						u8* TxPacket = (u8 *) TX_BUFFER_BASE;
 
 
 						// Let's print out the input data first
 						xil_printf("Data to encrypt: \r\n");
 						for(Index = 0; Index < fileSizeRead; Index++) {
-							xil_printf("0x%X ", inputBuf[Index]);
+							xil_printf("0x%X ", (u8)TxPacket[Index]);
 						}
 						xil_printf("\r\n");
 
@@ -351,20 +360,20 @@ int main(void)
 
 
 						// Temp pointers that the for loop can move around as it wants
-						u32 *outputBuf_ptr = (u32*)outputBuf;
-						u32 *inputBuf_ptr = (u32*)inputBuf;
+						u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
+						u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 						
 						for (i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
 						{
 							XAxiDma_send_aes_state(inputBuf_ptr, outputBuf_ptr, &switchKey, false);
-							inputBuf_ptr += AES_BLOCKLEN;
-							outputBuf_ptr += AES_BLOCKLEN;
+							inputBuf_ptr += AES_BLOCKLEN/4;
+							outputBuf_ptr += AES_BLOCKLEN/4;
 						}
 						
-						CheckData((u8*)inputBuf, (u8*)outputBuf, fileSizeRead);
+						CheckData((u8*)TX_BUFFER_BASE, (u8*)RX_BUFFER_BASE, fileSizeRead);
 						
 						AES_init_ctx(&ctx, switchKey);
-                        if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
+                        if (!AES_ECB_encrypt_buffer(&ctx, (u8*)TX_BUFFER_BASE, fileSizeRead)) {
                         	printf("ECB encryption CANCELED\r\n");
                         	break;
                         }
@@ -373,14 +382,14 @@ int main(void)
                         // Let's print out the input data first
 						xil_printf("Encrypted Data (SW): \r\n");
 						for(Index = 0; Index < fileSizeRead; Index++) {
-							xil_printf("0x%X ", inputBuf[Index]);
+							xil_printf("0x%X ", (unsigned int)TxPacket[Index]);
 						}
 						xil_printf("\r\n");
 						
 
                         printf("Writing encrypted file to SD card...\r\n");
                         /* Create output file */
-                        write_to_file(fileNameOut, inputBuf, fileSizeRead);
+                        write_to_file(fileNameOut, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Done!\r\n");
                         break;
                     case '2': /* Decrypt */
@@ -389,7 +398,7 @@ int main(void)
                         prompt_file_input(fileNameIn);
                         /* Read the current specified file */
                         fileSizeRead = 0;
-                        if(!read_from_file(fileNameIn, inputBuf, &fileSizeRead)) {
+                        if(!read_from_file(fileNameIn, (u8*)TX_BUFFER_BASE, &fileSizeRead)) {
                             break;
                         }
                         printf("> Name decrypted file output\r\n");
@@ -407,13 +416,13 @@ int main(void)
                         }
 						printf("Running ECB decryption...\r\n");
 						AES_init_ctx(&ctx, switchKey);
-                        if (!AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
+                        if (!AES_ECB_decrypt_buffer(&ctx, (u8*)TX_BUFFER_BASE, fileSizeRead)) {
 							printf("ECB decryption CANCELED\r\n");
 							break;
 						}
                         printf("Writing decrypted file to SD card...\r\n");
                         /* Create output file */
-                        write_to_file(fileNameOut, inputBuf, fileSizeRead);
+                        write_to_file(fileNameOut, (u8*)TX_BUFFER_BASE, fileSizeRead);
                         printf("Done!\r\n");
                         break;
                     default:
@@ -768,7 +777,7 @@ int XAxiDma_send_aes_state(u32 *inputBuf_ptr, u32 *outputBuf_ptr, u8 *key, bool 
 	int Index = 0;
 	
 	// Need to create the 9x32 bit output to send
-	u32 *combinedInput = malloc(sizeof(u32) * MAX_PKT_LEN_WORDS_SEND);
+	u32 *combinedInput = (u32*)SCRATCHPAD;
 	if (mode)
 	{
 		// Set to decrypt
@@ -782,12 +791,8 @@ int XAxiDma_send_aes_state(u32 *inputBuf_ptr, u32 *outputBuf_ptr, u8 *key, bool 
 	memcpy(&(combinedInput[1]), inputBuf_ptr, (sizeof(u32) * 4));
 	memcpy(&(combinedInput[5]), key, (16));
 	
-	// We are going to see if the things I'm sending are correct
-	xil_printf("Output buffer BEFORE: \r\n");
-	for(Index = 0; Index < 4; Index++) {
-		xil_printf("0x%X ", outputBuf_ptr[Index]);
-	}
-	xil_printf("\r\n");
+	Xil_DCacheFlushRange((u32)combinedInput, MAX_PKT_LEN_SEND);   /// I have a feeling that this "Combined input" is the problem, we need to push it into shared memory
+
 
 	Status = XAxiDma_SimpleTransfer(&AxiDma,(u32) outputBuf_ptr,
 					MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA);
@@ -810,21 +815,28 @@ int XAxiDma_send_aes_state(u32 *inputBuf_ptr, u32 *outputBuf_ptr, u8 *key, bool 
 			/* Wait */
 	}
 
-	// We are going to see if the things I'm sending are correct
+//	Status = CheckData();
+	if (Status != XST_SUCCESS) {
+		return XST_FAILURE;
+	}
+
+//	memset(outputBuf_ptr, 0x00, 16);
+
+	xil_printf("Output buffer BEFORE: \r\n");
+	for(Index = 0; Index < 4; Index++) {
+		xil_printf("0x%X ", outputBuf_ptr[Index]); // This isn't actually printing what's in memory 0x10800000, why...that could be something
+	}
+	xil_printf("\r\n");
+
+	// Looks like we need this
+	Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
+
 	xil_printf("Output buffer AFTER: \r\n");
 	for(Index = 0; Index < 4; Index++) {
 		xil_printf("0x%X ", outputBuf_ptr[Index]);
 	}
 	xil_printf("\r\n");
 
-//	Status = CheckData();
-	if (Status != XST_SUCCESS) {
-		return XST_FAILURE;
-	}
-
-	// Looks like we need this
-	Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
-	free(combinedInput);
 	return XST_SUCCESS;
 }
 
