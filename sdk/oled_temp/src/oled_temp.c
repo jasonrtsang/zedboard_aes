@@ -16,12 +16,18 @@
 #include "xil_exception.h"
 #include "xscugic.h"
 
+#define NUMINLIST 5
+
 int main(void){
 	static XGpio GPIOInstance_Ptr;
 	int xStatus;
 	u32 Readstatus=0,OldReadStatus=0;
 	int exit_flag,choice,internal_choice;
 	init_platform();
+
+	char test_array[NUMINLIST] = {'a','b','c','d','e'};
+	int i;
+	int wrapAround;
 
 	print("##### Application Starts #####\n\r");
 	print("\r\n");
@@ -36,10 +42,66 @@ int main(void){
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	XGpio_SetDataDirection(&GPIOInstance_Ptr, 1,1);
 
+	clear();
+
+	i = 0;
+
 	while(1)
 	{
-	Readstatus = XGpio_DiscreteRead(&GPIOInstance_Ptr, 1);
-	printf("0x%x\n", Readstatus);
+		Readstatus = XGpio_DiscreteRead(&GPIOInstance_Ptr, 1);
+		switch (Readstatus) {
+			case 4: // left
+//				clear();
+//				print_message("left",0);
+				break;
+			case 16: // up
+				clear();
+				if(i < NUMINLIST) {
+					i+=1;
+				}
+				if (i < NUMINLIST) {
+					print_message(test_array[i], 1);
+				}
+				if (i+1 < NUMINLIST) {
+					print_message(test_array[i+1], 2);
+				}
+				if (i+2 < NUMINLIST) {
+					print_message(test_array[i+2], 3);
+				}
+
+				print_message("up",0);
+				break;
+			case 8: // right
+//				clear();
+//				print_message("right",0);
+				break;
+			case 2: // down
+				clear();
+				if(i > 0) {
+					i-=1;
+				}
+				if (i < NUMINLIST) {
+					print_message(test_array[i], 1);
+				}
+				if (i+1 < NUMINLIST) {
+					print_message(test_array[i+1], 2);
+				}
+				if (i+2 < NUMINLIST) {
+					print_message(test_array[i+2], 3);
+				}
+
+				print_message("down",0);
+				break;
+			case 1: // center
+//				clear();
+//				print_message("center",0);
+				break;
+			default:
+				break;
+
+
+
+		}
 	}
 
 
