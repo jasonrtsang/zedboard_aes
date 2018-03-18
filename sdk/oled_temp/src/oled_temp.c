@@ -59,16 +59,7 @@ int main(void){
 
 	/* Initial screen */
 	clear();
-	print_message("File Selection", 0);
-	if (i < NUMINLIST) {
-		print_message(test_array[i], 2);
-	}
-	if (i+1 < NUMINLIST) {
-		print_message(test_array[i+1], 3);
-	}
-	if (i+2 < NUMINLIST) {
-		print_message(test_array[i+2], 3);
-	}
+	refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
 
 	while(1)
 	{
@@ -112,7 +103,6 @@ int main(void){
 
 void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index) {
 
-	char* cursorLine = printLines[index];
 	char* printLine;
 	char formattedLine[16];
 
@@ -120,17 +110,18 @@ void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index
 
 	print_message(menuLine, 0);
 
-	if (index < numOfLines) {
-		format_line(cursorLine, formattedLine, true);
+	if (index-1 >= 0 && index-1 < numOfLines) {
+		printLine = printLines[index-1];
+		format_line(printLine, formattedLine, false);
 		print_message(formattedLine, 1);
+	}
+	if (index < numOfLines) {
+		printLine = printLines[index];
+		format_line(printLine, formattedLine, true);
+		print_message(formattedLine, 2);
 	}
 	if (index+1 < numOfLines) {
 		printLine = printLines[index+1];
-		format_line(printLine, formattedLine, false);
-		print_message(formattedLine, 2);
-	}
-	if (index+2 < numOfLines) {
-		printLine = printLines[index+2];
 		format_line(printLine, formattedLine, false);
 		print_message(formattedLine, 3);
 	}
