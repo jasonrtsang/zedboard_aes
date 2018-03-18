@@ -17,38 +17,33 @@
 #include "xil_exception.h"
 #include "xscugic.h"
 
-#define NUMINLIST 6
+#define DEBOUNCE_DELAY 250000 // 0.25 seconds
 
 typedef uint8_t bool;
 #define true 1
 #define false 0
 
+enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
+static XGpio gpioBtn;
+
 
 /************************** Function Prototypes ******************************/
-void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index);
-
-void format_line(char inputLine[], char *outputLine, bool cursor);
-
-
-
+void refresh_oled (const char* menuLine, const char* printLines[], int numOfLines, int index);
+void format_line(const char inputLine[], char *outputLine, bool cursor);
+int selection_menu(const char* menuLine, const char* printLines[], int numOfLines);
 
 int main(void){
-	static XGpio gpioBtn;
-	int btnClick, i = 0;
+	int i = 0, listLength = 0;
+	bool nextMenu = false;
+	bool confirmation = false;
 
-	char* string_fileSelection = "File Selection:";
+	const char* mainMenu[LENGTH_MAINMENU] = {"Reformat", "Test bin", "ECB mode", "CBC mode", "Exit"};
+	const char* title_mainMenu = "Main Menu:";
 
-	char* test_array[NUMINLIST];
-	test_array[0] = "ALPHA";
-	test_array[1] = "BETA";
-	test_array[2] = "CORSA";
-	test_array[3] = "DOOR";
-	test_array[4] = "EHHHH";
-	test_array[5] = "FFUCK";
-
+	enum DPAD dpadClick;
 
 /* START */
-	print("##### Application Starts #####\r\n");
+	print("##### Application Starts #####\n\n");
 	/* Initialization */
 	init_platform();
 	/* D-pad buttons */
@@ -57,53 +52,166 @@ int main(void){
 	}
 	XGpio_SetDataDirection(&gpioBtn, 1, 1);
 
-	/* Initial screen */
-	clear();
-	refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
+	while(1) {
+		/* Start Screen */
+		clear();
+		print_message(" AES ENCRYPTION ", 1);
+		print_message("  & DECRYPTION  ", 2);
 
-	while(1)
-	{
-		btnClick = XGpio_DiscreteRead(&gpioBtn, 1);
-		switch (btnClick) {
-			case 4: // left
-//				clear();
-//				print_message("left",0);
-				break;
-			case 16: // up
+		while(!nextMenu) {
+			dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
+			if (dpadClick == CENTER ) {
+				nextMenu = true;
+				usleep(DEBOUNCE_DELAY);
+			}
+		}
+
+main_menu:
+		i = selection_menu(title_mainMenu, mainMenu, sizeof(mainMenu)/4);
+
+		nextMenu = false;
+		switch (i) {
+			case 0: // Reformat
+				confirmation = false;
 				clear();
-				if(i > 0 && i < NUMINLIST) {
-					i-=1;
+				print_message("Erase/ format SD", 0);
+				print_message("card to FATFS...", 1);
+				print_message(" Are you sure?  ", 2);
+				print_message("Click < to abort", 3);
+
+				while(!confirmation) {
+					dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
+					if(dpadClick == CENTER) {
+						confirmation = true;
+						usleep(DEBOUNCE_DELAY);
+					} else if(dpadClick == LEFT) {
+						usleep(DEBOUNCE_DELAY);
+						goto main_menu;
+					}
 				}
-				refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
-				usleep(250000);
-				break;
-			case 8: // right
-//				clear();
-//				print_message("right",0);
-				break;
-			case 2: // down
+				/*
+				 * REFORMAT CODE HERE
+				 */
+				goto main_menu;
+			case 1: // Test BIN
+				confirmation = false;
 				clear();
-				if(i >= 0 && i < NUMINLIST-1) {
+				const char* title_testBin = "Choose BIN size:";
+				const char* testBin[2] = {"16 bytes", "64 bytes"};
+
+
+				i = 0;
+				nextMenu = false;
+				listLength = 2;
+				clear();
+				refresh_oled(title_testBin, testBin, listLength, i);
+
+				while(!nextMenu)
+				{
+					dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
+					switch (dpadClick) {
+						case CENTER:
+							nextMenu = true;
+							break;
+						case DOWN:
+							clear();
+							if(i >= 0 && i < listLength-1) {
+								i+=1;
+							}
+							refresh_oled(title_testBin, testBin, listLength, i);
+							usleep(DEBOUNCE_DELAY);
+							break;
+						case UP:
+							clear();
+							if(i > 0 && i < listLength) {
+								i-=1;
+							}
+							refresh_oled(title_testBin, testBin, listLength, i);
+							usleep(DEBOUNCE_DELAY);
+							break;
+						case LEFT:
+							usleep(DEBOUNCE_DELAY);
+							goto main_menu;
+						default:
+							break;
+					}
+				}
+
+				/*
+				 * TEST.BIN CODE HERE
+				 */
+				nextMenu = false;
+				switch (i) {
+					case 0: // 16 bytes
+						break;
+					case 1: // larger size
+						break;
+					default:
+						break;
+				}
+				goto main_menu;
+			case 2: // ECB
+				break;
+			case 3: // CBC
+				break;
+			case 4: // Exit
+				usleep(DEBOUNCE_DELAY);
+				break;
+			default:
+				break;
+		}
+
+
+
+
+
+
+	}
+	return (0);
+}
+
+int selection_menu(const char* menuLine, const char* menuLines[], int numOfLines) {
+	int i = 0;
+	bool nextMenu = false;
+	enum DPAD dpadClick;
+
+	clear();
+	refresh_oled(menuLine, menuLines, numOfLines, i);
+
+	while(!nextMenu)
+	{
+		dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
+		switch (dpadClick) {
+			case CENTER:
+				nextMenu = true;
+				break;
+			case DOWN:
+				clear();
+				if(i >= 0 && i < numOfLines-1) {
 					i+=1;
 				}
-				refresh_oled(string_fileSelection, test_array, NUMINLIST, i);
-
-				usleep(250000); // 0.25 seconds delay
+				refresh_oled(menuLine, menuLines, numOfLines, i);
+				usleep(DEBOUNCE_DELAY);
 				break;
-			case 1: // center
-//				clear();
-//				print_message("center",0);
+			case UP:
+				clear();
+				if(i > 0 && i < numOfLines) {
+					i-=1;
+				}
+				refresh_oled(menuLine, menuLines, numOfLines, i);
+				usleep(DEBOUNCE_DELAY);
 				break;
 			default:
 				break;
 		}
 	}
-	return (1);
+
+	return i;
 }
 
-void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index) {
 
-	char* printLine;
+void refresh_oled (const char* menuLine, const char* printLines[], int numOfLines, int index) {
+
 	char formattedLine[16];
 
 	clear();
@@ -111,27 +219,24 @@ void refresh_oled (char* menuLine, char* printLines[], int numOfLines, int index
 	print_message(menuLine, 0);
 
 	if (index-1 >= 0 && index-1 < numOfLines) {
-		printLine = printLines[index-1];
-		format_line(printLine, formattedLine, false);
+		format_line(printLines[index-1], formattedLine, false);
 		print_message(formattedLine, 1);
 	}
 	if (index < numOfLines) {
-		printLine = printLines[index];
-		format_line(printLine, formattedLine, true);
+		format_line(printLines[index], formattedLine, true);
 		print_message(formattedLine, 2);
 	}
 	if (index+1 < numOfLines) {
-		printLine = printLines[index+1];
-		format_line(printLine, formattedLine, false);
+		format_line(printLines[index+1], formattedLine, false);
 		print_message(formattedLine, 3);
 	}
 }
 
-void format_line(char inputLine[], char *outputLine, bool cursor) {
+void format_line(const char inputLine[], char *outputLine, bool cursor) {
    int i = 0, length = 0;
 
    if (cursor) {
-	   outputLine[0] = '>';
+	   outputLine[0] = '*';
 	   outputLine[1] = ' ';
    } else {
 	   outputLine[0] = ' ';
