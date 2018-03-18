@@ -5,6 +5,7 @@
  *      Author: jrtsang
  */
 #include "ZedboardOLED.h"
+#include <unistd.h>
 
 #include <stdio.h>
 #include "platform.h"
@@ -25,7 +26,17 @@ int main(void){
 	int exit_flag,choice,internal_choice;
 	init_platform();
 
-	char test_array[NUMINLIST] = {'a','b','c','d','e'};
+	char *test_array[6];
+	char *print_index;
+
+	test_array[0] = "ALPHA";
+	test_array[1] = "BETA";
+	test_array[2] = "CORSA";
+	test_array[3] = "DOOR";
+	test_array[4] = "EHHHH";
+	test_array[5] = "FFUCK";
+
+
 	int i;
 	int wrapAround;
 
@@ -46,6 +57,16 @@ int main(void){
 
 	i = 0;
 
+	if (i < NUMINLIST) {
+		print_message(test_array[i], 1);
+	}
+	if (i+1 < NUMINLIST) {
+		print_message(test_array[i+1], 2);
+	}
+	if (i+2 < NUMINLIST) {
+		print_message(test_array[i+2], 3);
+	}
+
 	while(1)
 	{
 		Readstatus = XGpio_DiscreteRead(&GPIOInstance_Ptr, 1);
@@ -56,28 +77,7 @@ int main(void){
 				break;
 			case 16: // up
 				clear();
-				if(i < NUMINLIST) {
-					i+=1;
-				}
-				if (i < NUMINLIST) {
-					print_message(test_array[i], 1);
-				}
-				if (i+1 < NUMINLIST) {
-					print_message(test_array[i+1], 2);
-				}
-				if (i+2 < NUMINLIST) {
-					print_message(test_array[i+2], 3);
-				}
-
-				print_message("up",0);
-				break;
-			case 8: // right
-//				clear();
-//				print_message("right",0);
-				break;
-			case 2: // down
-				clear();
-				if(i > 0) {
+				if(i > 0 && i < NUMINLIST) {
 					i-=1;
 				}
 				if (i < NUMINLIST) {
@@ -89,7 +89,29 @@ int main(void){
 				if (i+2 < NUMINLIST) {
 					print_message(test_array[i+2], 3);
 				}
-
+				usleep(250000);
+				print_message("up",0);
+				break;
+			case 8: // right
+//				clear();
+//				print_message("right",0);
+				break;
+			case 2: // down
+				clear();
+				if(i >= 0 && i < NUMINLIST-1) {
+					i+=1;
+				}
+				if (i < NUMINLIST) {
+					print_index = "> " + test_array[i];
+					print_message(test_array[i], 1);
+				}
+				if (i+1 < NUMINLIST) {
+					print_message(test_array[i+1], 2);
+				}
+				if (i+2 < NUMINLIST) {
+					print_message(test_array[i+2], 3);
+				}
+				usleep(250000); // 0.25 seconds delay
 				print_message("down",0);
 				break;
 			case 1: // center
@@ -103,14 +125,6 @@ int main(void){
 
 		}
 	}
-
-
-	clear();
-
-	print_message("Texas A&M Qatar",0);
-	print_message("ECEN Department",2);
-	print_message(" ECEN449 ",3);
-
 
 	return (1);
 
