@@ -15,8 +15,6 @@
 int main(void){
 	static XGpio gpioBtn;
 	int choice = 0;
-	bool startScreen = false;
-	bool confirmation = false;
 
 	/* ENSURE LENGTHS OF 16 PER LINE */
 	char* welcomeConfirmation[] = {"                ",
@@ -24,11 +22,12 @@ int main(void){
 								   "  & DECRYPTION  ",
 								   "                "};
 	char* mainMenu[] = {"Main Menu:      ",
-						"  Reformat      ",
-						"  Test bin      ",
+						"  List files    ",
 						"  ECB mode      ",
 						"  CBC mode      ",
-						"  List files    ",
+						"  Reformat      ",
+						"  Test bin      ",
+						"  Ethernet mode ",
 						"  Exit          "};
 	char* testBinMenu[] = {"Choose BIN size:",
 			               "  16 bytes      ",
@@ -41,14 +40,10 @@ int main(void){
 	char* ecbMenu[] = {"ECB action:     ",
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
+
 	char* cbcMenu[] = {"CBC action:     ",
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
-
-	char* fileMenu[] = {"Select file:    ",
-						"  temp1         ",
-						"  temp2         "};
-
 
 	char* keyConfirmation[] = {"  Please enter  ",
 							   "  AES key using ",
@@ -59,12 +54,11 @@ int main(void){
 							       " be encrypted   ",
 							       " Are you sure?  ",
 							       "Click < to abort"};
+
 	char* decryptConfirmation[] = {" File will now  ",
 							       " be decrypted   ",
 							       " Are you sure?  ",
 							       "Click < to abort"};
-
-	enum DPAD dpadClick;
 
 	static FATFS fatfs; // File system format
 
@@ -79,61 +73,51 @@ int main(void){
 	XGpio_SetDataDirection(&gpioBtn, 1, 1);
 	/* SD card */
 	init_sd(&fatfs);
-
-welcome_screen:
-	/* Start Screen */
-	print_screen(welcomeConfirmation);
-
-	while(!startScreen) {
-		dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
-		if (dpadClick == CENTER ) {
-			startScreen = true;
-			usleep(DEBOUNCE_DELAY);
-		}
-	}
-	startScreen = false;
-
 	char** fileList;
 	char** fileListMenu;
 	int numOfFiles;
 
+welcome_screen:
+	/* Start Screen */
+
+	while(!confirmation_screen(&gpioBtn, welcomeConfirmation)) {
+	}
+
 	while(1) {
 		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
 		switch (choice) {
-			case 1: // Reformat
-				confirmation = false;
-				print_screen(reformatConfirmation);
-
-				while(!confirmation) {
-					dpadClick = XGpio_DiscreteRead(&gpioBtn, 1);
-					if(dpadClick == CENTER) {
-						confirmation = true;
-						usleep(DEBOUNCE_DELAY);
-					} else if(dpadClick == LEFT) {
-						usleep(DEBOUNCE_DELAY);
-						break;
-					}
+			case 1:
+				fileList = list_all_files(&numOfFiles);
+				fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
+file_list:
+				choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
+				// Hack to disable center button and only have back button exit
+				if(choice > 0) {
+					goto file_list;
 				}
-				// check if it failed, print on screen
-				format_sd();
-			case 2: // Test BIN
-				choice = selection_screen(&gpioBtn, testBinMenu, sizeof(testBinMenu)/4);
-				// check if it failed, print on screen
-				create_test_bin(choice);
+				free(fileList);
+				free(fileListMenu);
 				break;
-			case 3: // ECB
+			case 2: // ECB
 				choice = selection_screen(&gpioBtn, ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
 						// Choice is the filename so do stuff
-						choice = selection_screen(&gpioBtn, fileMenu, sizeof(fileMenu)/4);
+						fileList = list_all_files(&numOfFiles);
+						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
+ecb_file_selection:
+						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
+						if (choice > 0) {
+							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
+								goto ecb_file_selection;
+							}
+							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
+								goto ecb_file_selection;
+							}
+						}
+						free(fileList);
+						free(fileListMenu);
 
-						if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
-							break;
-						}
-						if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
-							break;
-						}
 						break;
 					case 2: // Decrypt
 						break;
@@ -141,16 +125,23 @@ welcome_screen:
 						break;
 				}
 				break;
-			case 4: // CBC
+			case 3: // CBC
 				break;
-			case 5:
-				fileList = list_all_files(&numOfFiles);
-				fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-				choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
-				free(fileList);
-				free(fileListMenu);
+			case 4: // Reformat
+				if(!confirmation_screen(&gpioBtn, reformatConfirmation)) {
+					break;
+				}
+				// check if it failed, print on screen
+				format_sd();
 				break;
-			case 6: // Exit
+			case 5: // Test BIN
+				choice = selection_screen(&gpioBtn, testBinMenu, sizeof(testBinMenu)/4);
+				// check if it failed, print on screen
+				create_test_bin(choice);
+				break;
+			case 6: // Ethernet
+				break;
+			case 7: // Exit
 				usleep(DEBOUNCE_DELAY);
 				goto welcome_screen;
 			default:

@@ -101,6 +101,8 @@ int selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
 				refresh_oled(menuLines, numOfLines, i, true);
 				usleep(DEBOUNCE_DELAY);
 				break;
+			case LEFT:
+				return 0;
 			default:
 				break;
 		}
