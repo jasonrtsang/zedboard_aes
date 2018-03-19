@@ -11,6 +11,7 @@
 #include "xil_types.h"
 #include "xgpio.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include "platform.h"
 #include "xgpio.h"
 #include "xparameters.h"
@@ -36,7 +37,7 @@ typedef uint8_t bool;
 
 enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
 
-#define DEBOUNCE_DELAY 250000 // 0.25 seconds
+#define DEBOUNCE_DELAY 125000 // 0.25 seconds
 
 #define TESTBIN_SIZE_16 16
 #define TESTBIN_SIZE_64 64
@@ -50,6 +51,7 @@ enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
 void print_screen(char* printLines[]);
 bool confirmation_screen(XGpio* gpioBtn, char* printLines[]);
 int selection_screen(XGpio* gpioBtn, char* printLines[], int numOfLines);
+char** format_fileList(char* inputFiles[], int numOfFiles);
 void format_cursor(char inputLine[], char *outputLine);
 void refresh_oled (char* printLines[], int numOfLines, int index, bool menu);
 
@@ -59,7 +61,7 @@ bool format_sd(void);
 void create_test_bin(int choice);
 bool write_to_file(const char *sdFile, const uint8_t *writeBuf, const uint32_t writeSize);
 bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
-void list_all_files(void);
+char** list_all_files(int* numOfFiles);
 
 
 #endif /* SRC_COMMON_H_ */

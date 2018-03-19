@@ -475,19 +475,37 @@ FRESULT f_findfirst (
 * @note     None
 *
 ******************************************************************************/
-void list_all_files(void)
+char** list_all_files(int* numOfFiles)
 {
     FRESULT fr;     /* Return value */
     DIR dj;         /* Directory search object */
     FILINFO fno;    /* File information */
+    // Wildcard pattern as all
     TCHAR* pat = "*";
+    int i = 0, fileCount = 0;
 
-    fr = f_findfirst(&dj, &fno, "0:/", pat);  /* Start to search for photo files */
+    // First pass to count the amount of files
+    fr = f_findfirst(&dj, &fno, Path, pat);
+    while (fr == FR_OK && fno.fname[0]) {
+    	fr = f_findnext(&dj, &fno, pat);
+    	fileCount++;
+    }
+    f_closedir(&dj);
 
+    // Allocate memory for all the pointers to files names
+    char** names = malloc(fileCount * sizeof(char *));
+
+    // Second pass to allocate memory of file names and doing a string copy
+    fr = f_findfirst(&dj, &fno, Path, pat);  /* Start to search for files */
     while (fr == FR_OK && fno.fname[0]) {         /* Repeat while an item is found */
         printf("%s\n", fno.fname);                /* Display the object name */
+        names[i] = malloc(sizeof(fno.fname) * sizeof(char));
+        strcpy(names[i], fno.fname);
+        i++;
         fr = f_findnext(&dj, &fno, pat);               /* Search for next item */
     }
 
     f_closedir(&dj);
+    *numOfFiles = fileCount;
+    return names;
 }

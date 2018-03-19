@@ -122,6 +122,38 @@ int selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
 * @note     Expects each line to be 16 char aligned
 *
 ******************************************************************************/
+char** format_fileList(char* inputFiles[], int numOfFiles) {
+   int i;
+   char* fileList_title = "Files on SD:    ";
+
+   char** outputFiles = malloc((numOfFiles+1) * sizeof(char *));
+
+   outputFiles[0] = malloc(sizeof(fileList_title) * sizeof(char));
+   strcpy(outputFiles[0], fileList_title);
+
+   for(i = 0; i < numOfFiles; i++) {
+	   outputFiles[i+1] = malloc(sizeof(inputFiles[i]) * sizeof(char));
+	   strcpy(outputFiles[i+1], " ");
+	   strcpy(outputFiles[i+1]+1, " ");
+	   strcpy(outputFiles[i+1]+2, inputFiles[i]);
+   }
+
+  return outputFiles;
+}
+
+/*****************************************************************************/
+/**
+*
+* Replaces first whitespace with * cursor
+*
+* @param    char inputLine[]         : Line content of cursor
+*           char *outputLine         : Line formatted with cursor
+*
+* @return   None
+*
+* @note     Expects each line to be 16 char aligned
+*
+******************************************************************************/
 void format_cursor(char inputLine[], char *outputLine) {
    int i = 1, length = 0;
 

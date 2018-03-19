@@ -64,8 +64,6 @@ int main(void){
 							       " Are you sure?  ",
 							       "Click < to abort"};
 
-
-
 	enum DPAD dpadClick;
 
 	static FATFS fatfs; // File system format
@@ -94,6 +92,10 @@ welcome_screen:
 		}
 	}
 	startScreen = false;
+
+	char** fileList;
+	char** fileListMenu;
+	int numOfFiles;
 
 	while(1) {
 		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
@@ -142,7 +144,11 @@ welcome_screen:
 			case 4: // CBC
 				break;
 			case 5:
-				list_all_files();
+				fileList = list_all_files(&numOfFiles);
+				fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
+				choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
+				free(fileList);
+				free(fileListMenu);
 				break;
 			case 6: // Exit
 				usleep(DEBOUNCE_DELAY);
