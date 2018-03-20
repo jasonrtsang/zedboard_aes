@@ -6,12 +6,6 @@
  */
 #include "common.h"
 
-///************************** Function Prototypes ******************************/
-//void refresh_oled (char* printLines[], int numOfLines, int index, bool menu);
-//void format_cursor(char inputLine[], char *outputLine);
-//int selection_screen(char* printLines[], int numOfLines);
-//void print_screen(char* menuLines[]);
-
 int main(void){
 	static XGpio gpioBtn;
 	int choice = 0;
