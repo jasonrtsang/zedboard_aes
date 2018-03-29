@@ -69,7 +69,7 @@ bool format_sd(void)
 * @note     None
 *
 ******************************************************************************/
-void create_test_bin(int choice)
+bool create_test_bin(int choice)
 {
 	int i;
 	uint8_t outputBuf[64] __attribute__ ((aligned(32)));
@@ -86,7 +86,7 @@ void create_test_bin(int choice)
             break;
         default:
         	printf("UH OH: I shouldn't be here...\r\n");
-        	return;
+        	return false;
     }
     /* Populate TEST.BIN with incrementing index */
     for(i = 0; i < fileSize; i++) {
@@ -94,8 +94,10 @@ void create_test_bin(int choice)
     }
     if(!write_to_file(SD_TestBin, outputBuf, fileSize)) {
     	printf("Is the SD card plugged in and not locked?\r\n");
+    	return false;
     } else {
     	printf("Done!\r\n");
+    	return true;
     }
 }
 

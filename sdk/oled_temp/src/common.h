@@ -30,6 +30,8 @@
 #include "xplatform_info.h"
 #include "xsdps.h"
 
+#include "aes.h"
+
 
 typedef uint8_t bool;
 #define true 1
@@ -43,6 +45,14 @@ enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
 #define TESTBIN_SIZE_64 64
 
 
+/* MIO51 BTN9 Setup*/
+#define XPAR_AXI_XADC_0_DEVICE_ID 0
+
+#define GPIO_DEVICE_ID      XPAR_XGPIOPS_0_DEVICE_ID
+#define INTC_DEVICE_ID      XPAR_SCUGIC_SINGLE_DEVICE_ID
+#define GPIO_INTERRUPT_ID   XPS_GPIO_INT_ID
+
+#define pbsw 51
 
 
 /************************** Function Prototypes ******************************/
@@ -58,10 +68,15 @@ void refresh_oled (char* printLines[], int numOfLines, int index, bool menu);
 /*********************************** SD *************************************/
 bool init_sd(FATFS* fatfs);
 bool format_sd(void);
-void create_test_bin(int choice);
+bool create_test_bin(int choice);
 bool write_to_file(const char *sdFile, const uint8_t *writeBuf, const uint32_t writeSize);
 bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 char** list_all_files(int* numOfFiles);
+
+/**************************** *** INTERRUPT *********************************/
+void My_XGpioPs_IntrHandler(XGpioPs *InstancePtr);
+void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId);
+void IntrHandler(void *CallBackRef, int Bank, u32 Status);
 
 
 #endif /* SRC_COMMON_H_ */
