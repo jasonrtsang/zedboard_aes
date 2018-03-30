@@ -6,15 +6,7 @@
  */
 #include "common.h"
 
-void getKeyValue(void) {
-
-}
-
-
-int main(void){
-	static XGpio gpioBtn;
-	int choice = 0;
-
+void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
 	/* Fixed keys and initialization vector (cbc) */
 	const uint8_t keys[] = {
 			0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7,
@@ -49,6 +41,21 @@ int main(void){
 			0xd1, 0x2c, 0x1c, 0x5a, 0x80, 0x6c, 0x8c, 0x53, 0x84, 0xf2, 0x88, 0x99, 0x8b, 0xf5, 0x24, 0x8c,
 			0xeb, 0xf3, 0x03, 0xe5, 0x61, 0x25, 0x34, 0xbd, 0xe3, 0x29, 0x27, 0x26, 0x9f, 0x41, 0x96, 0x74,
 	};
+
+	uint8_t dipValue;
+	int i;
+
+	dipValue = XGpio_DiscreteRead(gpioSwitches, 1);
+	for (i = 0; i < 16; i++) {
+		switchKey[i] = keys[dipValue+i*16];
+    }
+}
+
+
+int main(void){
+	static XGpio gpioBtn;
+	int choice = 0;
+
 	const uint8_t iv_key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 	/* ENSURE LENGTHS OF 16 PER LINE */
@@ -100,9 +107,13 @@ int main(void){
 							    "                ",
 							    "                "};
 
+	char* processingScreen[] = {"                ",
+							    "   Processing   ",
+							    "      ....      ",
+							    "                "};
+
 
 	static FATFS fatfs; // File system format
-	int i;
 
 /* START */
 	print("##### Application Starts #####\n\n");
@@ -114,7 +125,6 @@ int main(void){
 	}
 	XGpio_SetDataDirection(&gpioBtn, 1, 1);
 	/* SD card */
-	init_sd(&fatfs);
 	char** fileList;
 	char** fileListMenu;
 	int numOfFiles;
@@ -132,7 +142,6 @@ int main(void){
 	XGpio gpioSwitches;
 	XGpio gpioLeds;
 	uint8_t switchKey[16];
-	uint8_t dipValue;
 
 	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
 		printf("UH OH: GPIO SWS initialization failed\r\n");
@@ -167,9 +176,10 @@ welcome_screen:
 	}
 
 	while(1) {
-		cancelFlag = false;
-
 		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
+		init_sd(NULL);
+		init_sd(&fatfs);
+		cancelFlag = false;
 		switch (choice) {
 			case 1:
 				fileList = list_all_files(&numOfFiles);
@@ -190,26 +200,25 @@ file_list:
 						// Choice is the filename so do stuff
 						fileList = list_all_files(&numOfFiles);
 						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-ecb_file_selection:
+ecb_file_encrypt:
 						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
 						if (choice > 0) {
 							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
-								goto ecb_file_selection;
+								goto ecb_file_encrypt;
 							} else {
 								// Get key value
-								dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
-								for (i = 0; i < 16; i++) {
-									switchKey[i] = keys[dipValue+i*16];
-		                        }
+								getKeyValue(&gpioSwitches, switchKey);
 							}
 							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
-								goto ecb_file_selection;
+								goto ecb_file_encrypt;
 							} else {
+								print_screen(processingScreen);
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
 		                            break;
 		                        }
+		                        /* Init roundkeys and process */
 								AES_init_ctx(&ctx, switchKey);
 								if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
 									printf("ECB encryption CANCELED\r\n");
@@ -217,6 +226,9 @@ ecb_file_selection:
 								}
 								/* Create output file */
 								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
+								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+									break;
+								}
 							}
 						}
 						free(fileList);
@@ -226,37 +238,35 @@ ecb_file_selection:
 						// Choice is the filename so do stuff
 						fileList = list_all_files(&numOfFiles);
 						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-ecb_file_selection2:
+ecb_file_decrypt:
 						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
 						if (choice > 0) {
 							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
-								goto ecb_file_selection2;
+								goto ecb_file_encrypt;
 							} else {
 								// Get key value
-								dipValue = XGpio_DiscreteRead(&gpioSwitches, 1);
-								for (i = 0; i < 16; i++) {
-									switchKey[i] = keys[dipValue+i*16];
-		                        }
-								printf("Running ECB decryption...\r\n");
+								getKeyValue(&gpioSwitches, switchKey);
+							}
+							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
+								goto ecb_file_encrypt;
+							} else {
+								print_screen(processingScreen);
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
 		                            break;
 		                        }
+		                        /* Init roundkeys and process */
 								AES_init_ctx(&ctx, switchKey);
 								if (!AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
 									printf("ECB decryption CANCELED\r\n");
 									break;
 								}
-								printf("Writing decrypt file to SD card...\r\n");
 								/* Create output file */
 								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
-								printf("Done!\r\n");
-							}
-							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
-								goto ecb_file_selection2;
-							} else {
-								// encryption code
+								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+									break;
+								}
 							}
 						}
 						free(fileList);
