@@ -93,7 +93,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
 	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
 
-	u32 *aes_module_address = (u32*)XPAR_AES_FULL_0_S00_AXI_BASEADDR;
+	u32 *aes_module_address = (u32*)XPAR_AXIDMA_0_BASEADDR;
 
 
 	u32 mode_1 = 0xFFFFFFFF;

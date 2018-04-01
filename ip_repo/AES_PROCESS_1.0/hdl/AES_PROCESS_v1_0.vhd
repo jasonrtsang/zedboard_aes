@@ -20,8 +20,8 @@ entity AES_PROCESS_v1_0 is
 		
 		-- Ports required for DMA transfer
 		-- Bus protocol ports
-		ACLK            : in  std_logic;                     -- Synchronous clock
-        ARESETN         : in  std_logic;                     -- System reset, active low
+		AXIS_ACLK       : in  std_logic;                     -- Synchronous clock
+        AXIS_ARESETN    : in  std_logic;                     -- System reset, active low
 		S_AXIS_TREADY   : out std_logic;                     -- Ready to accept data in
         S_AXIS_TDATA    : in  std_logic_vector(31 downto 0); -- Data in
         S_AXIS_TLAST    : in  std_logic;                     -- Optional data in qualifier
@@ -200,12 +200,12 @@ AES_PROCESS_v1_0_S00_AXI_inst : AES_PROCESS_v1_0_S00_AXI
         --outMode <= ZEROS when (aes_mode = ENCRYPTION) else ONES;
         
         -- AES port map
-        aes : entity work.aes port map (clk => ACLK, reset => aes_reset, done => aes_done, mode => aes_mode, i => inState, k => inKey, o => outState);
+        aes : entity work.aes port map (clk => AXIS_ACLK, reset => aes_reset, done => aes_done, mode => aes_mode, i => inState, k => inKey, o => outState);
     
-        state_machine : process (ACLK) is
+        state_machine : process (AXIS_ACLK) is
         begin
-        if rising_edge(ACLK) then
-            if ARESETN = '0' then
+        if rising_edge(AXIS_ACLK) then
+            if AXIS_ARESETN = '0' then
                 num_of_reads   <= NUMBER_OF_INPUT_WORDS-1;
                 num_of_writes  <= NUMBER_OF_OUTPUT_WORDS-1;
     --            num_of_process <= NUMBER_OF_INPUT_WORDS-1;
