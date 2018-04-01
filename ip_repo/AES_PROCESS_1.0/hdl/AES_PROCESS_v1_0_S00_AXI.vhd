@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.aes_package.all;
 
 entity AES_PROCESS_v1_0_S00_AXI is
 	generic (
@@ -16,6 +17,10 @@ entity AES_PROCESS_v1_0_S00_AXI is
 	);
 	port (
 		-- Users to add ports here
+		
+		AES_KEY : out STATE;
+		AES_MODE_REG : out std_logic_vector(C_S_AXI_DATA_WIDTH-1 downto 0);
+		AES_IV : out STATE;
 
 		-- User ports ends
 		-- Do not modify the ports beyond this line
@@ -449,6 +454,22 @@ begin
 
 
 	-- Add user logic here
+	
+	-- Need to connect the ports here
+
+	AES_MODE_REG <= slv_reg8;
+	AES_KEY <= (
+        (slv_reg0(31 downto 24), slv_reg0(23 downto 16), slv_reg0(15 downto 8), slv_reg0(7 downto 0)),
+        (slv_reg1(31 downto 24), slv_reg1(23 downto 16), slv_reg1(15 downto 8), slv_reg1(7 downto 0)),
+        (slv_reg2(31 downto 24), slv_reg2(23 downto 16), slv_reg2(15 downto 8), slv_reg2(7 downto 0)),
+        (slv_reg3(31 downto 24), slv_reg3(23 downto 16), slv_reg3(15 downto 8), slv_reg3(7 downto 0))
+    );
+    AES_IV <= (
+            (slv_reg4(31 downto 24), slv_reg4(23 downto 16), slv_reg4(15 downto 8), slv_reg4(7 downto 0)),
+            (slv_reg5(31 downto 24), slv_reg5(23 downto 16), slv_reg5(15 downto 8), slv_reg5(7 downto 0)),
+            (slv_reg6(31 downto 24), slv_reg6(23 downto 16), slv_reg6(15 downto 8), slv_reg6(7 downto 0)),
+            (slv_reg7(31 downto 24), slv_reg7(23 downto 16), slv_reg7(15 downto 8), slv_reg7(7 downto 0))
+     );
 
 	-- User logic ends
 
