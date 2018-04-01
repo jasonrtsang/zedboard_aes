@@ -169,6 +169,11 @@ int main(void){
 	SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
 
+
+	/* DMA */
+	XAxiDma AxiDma;
+
+
 welcome_screen:
 	/* Start Screen */
 
@@ -218,12 +223,37 @@ ecb_file_encrypt:
 		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
 		                            break;
 		                        }
+
+
+
+
+
+#if 0 //SOFTWARE
 		                        /* Init roundkeys and process */
 								AES_init_ctx(&ctx, switchKey);
 								if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
 									printf("ECB encryption CANCELED\r\n");
 									break;
 								}
+#endif
+
+
+								xil_printf("\r\n---DMA Entering main() --- \r\n");
+								XAxiDma_Init(&AxiDma, DMA_DEV_ID);
+								/* Run the poll example for simple transfer */
+								int Status = XAxiDma_SimplePollExample(&AxiDma, DMA_DEV_ID, 0);
+
+								if(Status != XST_SUCCESS) {
+									xil_printf("XAxiDma_SimplePollExample: Failed\r\n");
+									return XST_FAILURE;
+								}
+								xil_printf("XAxiDma_SimplePollExample: Passed\r\n");
+								xil_printf("--- Exiting main() --- \r\n");
+
+
+
+
+
 								/* Create output file */
 								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
