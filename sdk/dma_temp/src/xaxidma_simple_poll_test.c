@@ -93,6 +93,7 @@ int XAxiDma_SimplePollExample(u16 DeviceId, u16 run_num)
 	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
 	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
 
+
 	u32 *aes_module_address = (u32*)XPAR_AES_FULL_0_S00_AXI_BASEADDR;
 
 
@@ -247,6 +248,8 @@ static int CheckData(void)
 // Initialize DMA
 int XAxiDma_Init(u16 DeviceId)
 {
+	u32 *aes_module_address = (u32*)XPAR_AES_FULL_0_S00_AXI_BASEADDR;
+	*(aes_module_address) = 0xFFFFFFFF; ///////// SOMETHING IS A BIG PROBLEM HERE
 	XAxiDma_Config *CfgPtr;
 	int Status;
 
