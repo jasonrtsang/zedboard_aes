@@ -42,6 +42,8 @@ typedef uint8_t bool;
 
 enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
 
+enum AESMODE {ENCRYPTION = 0, DECRYPTION = 1};
+
 #define DEBOUNCE_DELAY 125000 // 0.25 seconds
 
 #define TESTBIN_SIZE_16 16
@@ -101,5 +103,6 @@ void IntrHandler(void *CallBackRef, int Bank, u32 Status);
 int CheckData(void);
 int XAxiDma_Init(XAxiDma* AxiDma, u16 DeviceId);
 int XAxiDma_SimplePollExample(XAxiDma* AxiDma, u16 DeviceId, u16 run_num);
+bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *outputBuf_ptr, enum AESMODE mode);
 
 #endif /* SRC_COMMON_H_ */
