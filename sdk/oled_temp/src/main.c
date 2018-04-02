@@ -218,19 +218,10 @@ ecb_file_encrypt:
 								print_screen(processingScreen);
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
-		                        if(!read_from_file(fileList[choice-1], (u8*)TX_BUFFER_BASE, &fileSizeRead)) {
+		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
 
-								u8* RxPacket = (u8 *) RX_BUFFER_BASE;
-								u8* TxPacket = (u8 *) TX_BUFFER_BASE;
-								// Let's print out the input data first
-								xil_printf("Data to encrypt: \r\n");
-								for(int Index = 0; Index < fileSizeRead; Index++) {
-									xil_printf("0x%X ", (u8)TxPacket[Index]);
-								}
-								xil_printf("\r\n");
-								// Temp pointers that the for loop can move around as it wants
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
@@ -240,21 +231,8 @@ ecb_file_encrypt:
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								}
 
-
-								// Now let's see what the data looks like after we're done
-								// Let's print out the input data first
-								xil_printf("Encrypted Data (SW): \r\n");
-								for(int Index = 0; Index < fileSizeRead; Index++) {
-									xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
-								}
-								xil_printf("\r\n");
-
-
-
-
-
 								/* Create output file */
-								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
+								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}
@@ -280,6 +258,7 @@ ecb_file_decrypt:
 								goto ecb_file_decrypt;
 							} else {
 								print_screen(processingScreen);
+#if 0
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
@@ -293,6 +272,41 @@ ecb_file_decrypt:
 								}
 								/* Create output file */
 								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
+								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+									break;
+								}
+#endif
+		                        /* Read the current specified file */
+		                        fileSizeRead = 0;
+		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
+		                            break;
+		                        }
+
+
+//								u8* RxPacket = (u8 *) RX_BUFFER_BASE;
+//								u8* TxPacket = (u8 *) TX_BUFFER_BASE;
+//								// Let's print out the input data first
+//								xil_printf("Input: \r\n");
+//								for(int Index = 0; Index < fileSizeRead; Index++) {
+//									xil_printf("0x%X ", (u8)TxPacket[Index]);
+//								}
+//								xil_printf("\r\n");
+//								// Temp pointers that the for loop can move around as it wants
+								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
+								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
+								for (int i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+								{
+									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, DECRYPTION);
+									inputBuf_ptr += AES_BLOCKLEN/4;
+									outputBuf_ptr += AES_BLOCKLEN/4;
+								}
+//								xil_printf("Output: \r\n");
+//								for(int Index = 0; Index < fileSizeRead; Index++) {
+//									xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
+//								}
+//								xil_printf("\r\n");
+								/* Create output file */
+								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}

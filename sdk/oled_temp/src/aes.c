@@ -547,257 +547,52 @@ void AES_CBC_decrypt_buffer(struct AES_ctx* ctx, uint8_t* buf, uint32_t length)
 
 
 
-/*****************************************************************************/
-/**
-* The example to do the simple transfer through polling. The constant
-* NUMBER_OF_TRANSFERS defines how many times a simple transfer is repeated.
-*
-* @param	DeviceId is the Device Id of the XAxiDma instance
-*
-* @return
-*		- XST_SUCCESS if example finishes successfully
-*		- XST_FAILURE if error occurs
-*
-* @note		None
-*
-*
-******************************************************************************/
-int XAxiDma_SimplePollExample(XAxiDma* AxiDma, u16 DeviceId, u16 run_num)
-{
-//	XAxiDma_Config *CfgPtr;
-	int Status;
-	u32 *TxBufferPtr;
-	u32 *RxBufferPtr;
-//	u32 Value;
 
-	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
-	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
-
-	u32 *aes_module_address = (u32*)XPAR_AXIDMA_0_BASEADDR;
-
-
-	u32 mode = 0x00000000;
-	u32 inputData[4] = {0x6bc1bee2, 0x2e409f96, 0xe93d7e11, 0x7393172a};
-
-
-	u32 key[4] = {0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c};
-
-	// Set mode with register write
-		*(aes_module_address + 8) = mode;
-
-	// Set data
-		TxBufferPtr[0] = inputData[0];
-		TxBufferPtr[1] = inputData[1];
-		TxBufferPtr[2] = inputData[2];
-		TxBufferPtr[3] = inputData[3];
-
-	// Set Key with register write
-
-	*(aes_module_address + 0) = key[0];
-	*(aes_module_address + 1) = key[1];
-	*(aes_module_address + 2) = key[2];
-	*(aes_module_address + 3) = key[3];
-
-	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
-	 * is enabled
-	 */
-	Xil_DCacheFlushRange((u32)TxBufferPtr, MAX_PKT_LEN_SEND);
-
-
-	Status = XAxiDma_SimpleTransfer(AxiDma,(u32) RxBufferPtr,
-				MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA);
-
-	if (Status != XST_SUCCESS) {
-		return XST_FAILURE;
-	}
-
-	Status = XAxiDma_SimpleTransfer(AxiDma,(u32) TxBufferPtr,
-				MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE);
-
-	if (Status != XST_SUCCESS) {
-		return XST_FAILURE;
-	}
-
-	while (XAxiDma_Busy(AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
-			/* Wait */
-	}
-	while (XAxiDma_Busy(AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
-			/* Wait */
-	}
-
-	// We are going to see if the things I'm sending are correct
-
-	if (Status != XST_SUCCESS) {
-		return XST_FAILURE;
-	}
-
-//		xil_printf("Output buffer BEFORE: \r\n");
-//		for(Index = 0; Index < 4; Index++) {
-//			xil_printf("0x%X ", RxBufferPtr[Index]);
-//		}
-//		xil_printf("\r\n");
-
-	Xil_DCacheInvalidateRange((u32)RxBufferPtr, MAX_PKT_LEN_RCV);
-
-//		xil_printf("Output buffer AFTER: \r\n");
-//		for(Index = 0; Index < 4; Index++) {
-//			xil_printf("0x%X ", RxBufferPtr[Index]);
-//		}
-//		xil_printf("\r\n");
-	Status = CheckData();
-
-	/* Test finishes successfully
-	 */
-	return XST_SUCCESS;
-}
 
 bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *outputBuf_ptr, enum AESMODE mode) {
 
-	u32 aes_mode;
-
-	u32 *aes_process_dma_address = (u32*)XPAR_AXIDMA_0_BASEADDR;
-
+	uint32_t *aes_process_address = (uint32_t*)XPAR_AES_PROCESS_0_S00_AXI_BASEADDR;
 
 	// Set Key with register write
-		*(aes_process_dma_address + 0) = key[0] << 24 | key[1] << 16 | key[2] << 8 | key[3];
-		*(aes_process_dma_address + 1) = key[4] << 24 | key[5] << 16 | key[6] << 8 | key[7];
-		*(aes_process_dma_address + 2) = key[8] << 24 | key[9] << 16 | key[10] << 8 | key[11];
-		*(aes_process_dma_address + 3) = key[12] << 24 | key[13] << 16 | key[14] << 8 | key[15];
-
-		// Set mode with register write
-		switch(mode) {
-			case ENCRYPTION:
-				aes_mode = 0x00000000;
-				break;
-			case DECRYPTION:
-				aes_mode = 0xFFFFFFFF;
-				break;
-			default:
-				return false;
-				break;
-		};
-		*(aes_process_dma_address + 8) = aes_mode;
-
-
-		/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
-		 * is enabled
-		 */
-		Xil_DCacheFlushRange((u32)inputBuf_ptr, MAX_PKT_LEN_SEND);
-
-		if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) outputBuf_ptr, MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA)) {
-			return XST_FAILURE;
-		}
-
-		if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) inputBuf_ptr, MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE)) {
-			return XST_FAILURE;
-		}
-
-		while (XAxiDma_Busy(AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
-			/* Wait */
-		}
-		while (XAxiDma_Busy(AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
-			/* Wait */
-		}
-
-		Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
-
-
-
-
-
-#if 0
-
-//	XAxiDma_Config *CfgPtr;
-	int Status;
-	u32 *TxBufferPtr;
-	u32 *RxBufferPtr;
-	u32 aes_mode;
-	int i;
-
-	u32 *aes_process_dma_address = (u32*)XPAR_AXIDMA_0_BASEADDR;
-
-	TxBufferPtr = (u32 *)TX_BUFFER_BASE;
-	RxBufferPtr = (u32 *)RX_BUFFER_BASE;
-
-	int Index;
-	xil_printf("Key sent: \r\n");
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index++) {
-		xil_printf("0x%X ", (unsigned int)key[Index]);
-	}
-	xil_printf("\r\n");
-
-	// Set Key with register write
-	*(aes_process_dma_address + 0) = key[0] << 24 | key[1] << 16 | key[2] << 8 | key[3];
-	*(aes_process_dma_address + 1) = key[4] << 24 | key[5] << 16 | key[6] << 8 | key[7];
-	*(aes_process_dma_address + 2) = key[8] << 24 | key[9] << 16 | key[10] << 8 | key[11];
-	*(aes_process_dma_address + 3) = key[12] << 24 | key[13] << 16 | key[14] << 8 | key[15];
+	*(aes_process_address + 0) =  key[0] << 24 |  key[1] << 16 |  key[2] << 8 |  key[3];
+	*(aes_process_address + 1) =  key[4] << 24 |  key[5] << 16 |  key[6] << 8 |  key[7];
+	*(aes_process_address + 2) =  key[8] << 24 |  key[9] << 16 | key[10] << 8 | key[11];
+	*(aes_process_address + 3) = key[12] << 24 | key[13] << 16 | key[14] << 8 | key[15];
 
 	// Set mode with register write
 	switch(mode) {
 		case ENCRYPTION:
-			aes_mode = 0x00000000;
+			*(aes_process_address + 8) = 0x00000000;
 			break;
 		case DECRYPTION:
-			aes_mode = 0xFFFFFFFF;
+			*(aes_process_address + 8) = 0xFFFFFFFF;
 			break;
 		default:
 			return false;
 			break;
 	};
-	*(aes_process_dma_address + 8) = aes_mode;
 
+	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
+	 * is enabled
+	 */
+	Xil_DCacheFlushRange((u32)inputBuf_ptr, MAX_PKT_LEN_SEND);
 
-
-	for (i = 0; i < length; i += 16)
-	{
-
-		xil_printf("Data sent: \r\n");
-		for(Index = i; Index < MAX_PKT_LEN_WORDS_SEND; Index++) {
-			xil_printf("0x%X ", (unsigned int)buf[Index]);
-		}
-		xil_printf("\r\n");
-		// The next function call encrypts the PlainText with the Key using AES algorithm.
-		// Set data
-		TxBufferPtr[0] = buf[i] << 24 | buf[i+1] << 16 | buf[i+2] << 8 | buf[i+3];
-		TxBufferPtr[1] = buf[i+4] << 24 | buf[i+5] << 16 | buf[i+6] << 8 | buf[i+7];
-		TxBufferPtr[2] = buf[i+8] << 24 | buf[i+9] << 16 | buf[i+10] << 8 | buf[i+11];
-		TxBufferPtr[3] = buf[i+12] << 24 | buf[i+13] << 16 | buf[i+14] << 8 | buf[i+15];
-
-		/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
-		 * is enabled
-		 */
-		Xil_DCacheFlushRange((u32)TxBufferPtr, MAX_PKT_LEN_SEND);
-
-		if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) RxBufferPtr, MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA)) {
-			return XST_FAILURE;
-		}
-
-		if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) TxBufferPtr, MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE)) {
-			return XST_FAILURE;
-		}
-
-		while (XAxiDma_Busy(AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
-			/* Wait */
-		}
-		while (XAxiDma_Busy(AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
-			/* Wait */
-		}
-
-		Xil_DCacheInvalidateRange((u32)RxBufferPtr, MAX_PKT_LEN_RCV);
-
-		int j = 0;
-		for (j = 0; j < 16; j+=4) {
-			buf[j+i] = (RxBufferPtr[0] >> 24) & 0xFF;
-			buf[j+i+1] = (RxBufferPtr[0] >> 16) & 0xFF;
-			buf[j+i+2] = (RxBufferPtr[0] >> 8) & 0xFF;
-			buf[j+i+3] =  RxBufferPtr[0] & 0xFF;
-		}
-
-		if (cancelFlag) {
-			return false;
-		}
+	if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) outputBuf_ptr, MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA)) {
+		return XST_FAILURE;
 	}
-#endif
+
+	if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) inputBuf_ptr, MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE)) {
+		return XST_FAILURE;
+	}
+
+	while (XAxiDma_Busy(AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
+		/* Wait */
+	}
+	while (XAxiDma_Busy(AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
+		/* Wait */
+	}
+
+	Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
 
 	return true;
 }

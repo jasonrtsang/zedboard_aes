@@ -115,7 +115,7 @@ bool create_test_bin(int choice)
 * @note     None
 *
 ******************************************************************************/
-bool write_to_file(const char *sdFile, const uint8_t *writeBuf, const uint32_t writeSize)
+bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t writeSize)
 {
 	FIL fil;
     UINT numOfBytesWritten; // Not used

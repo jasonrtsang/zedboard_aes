@@ -47,7 +47,7 @@ enum AESMODE {ENCRYPTION = 0, DECRYPTION = 1};
 #define DEBOUNCE_DELAY 125000 // 0.25 seconds
 
 #define TESTBIN_SIZE_16 16
-#define TESTBIN_SIZE_64 64
+#define TESTBIN_SIZE_64 123865
 
 /* MIO51 BTN9 Setup*/
 #define XPAR_AXI_XADC_0_DEVICE_ID 0
@@ -90,7 +90,7 @@ void refresh_oled (char* printLines[], int numOfLines, int index, bool menu);
 bool init_sd(FATFS* fatfs);
 bool format_sd(void);
 bool create_test_bin(int choice);
-bool write_to_file(const char *sdFile, const uint8_t *writeBuf, const uint32_t writeSize);
+bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t writeSize);
 bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize);
 char** list_all_files(int* numOfFiles);
 
