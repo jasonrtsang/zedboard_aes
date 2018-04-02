@@ -42,44 +42,51 @@ int XAxiDma_Init(XAxiDma* AxiDma, u16 DeviceId)
 	return XST_SUCCESS;
 }
 
-/*****************************************************************************/
-/*
-*
-* This function checks data buffer after the DMA transfer is finished.
-*
-* @param	None
-*
-* @return
-*		- XST_SUCCESS if validation is successful.
-*		- XST_FAILURE otherwise.
-*
-* @note		None.
-*
-******************************************************************************/
-int CheckData(void)
-{
-	u32 *RxPacket;
-	u32 *TxPacket;
-	int Index = 0;
 
-	RxPacket = (u32 *) RX_BUFFER_BASE;
-	TxPacket = (u32 *) TX_BUFFER_BASE;
+bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *outputBuf_ptr, enum AESMODE mode) {
 
-	/* Invalidate the DestBuffer before receiving the data, in case the
-	 * Data Cache is enabled
+	uint32_t *aes_process_address = (uint32_t*)XPAR_AES_PROCESS_0_S00_AXI_BASEADDR;
+
+	// Set Key with register write
+	*(aes_process_address + 0) =  key[0] << 24 |  key[1] << 16 |  key[2] << 8 |  key[3];
+	*(aes_process_address + 1) =  key[4] << 24 |  key[5] << 16 |  key[6] << 8 |  key[7];
+	*(aes_process_address + 2) =  key[8] << 24 |  key[9] << 16 | key[10] << 8 | key[11];
+	*(aes_process_address + 3) = key[12] << 24 | key[13] << 16 | key[14] << 8 | key[15];
+
+	// Set mode with register write
+	switch(mode) {
+		case ENCRYPTION:
+			*(aes_process_address + 8) = 0x00000000;
+			break;
+		case DECRYPTION:
+			*(aes_process_address + 8) = 0xFFFFFFFF;
+			break;
+		default:
+			return false;
+			break;
+	};
+
+	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
+	 * is enabled
 	 */
-//	Xil_DCacheInvalidateRange((u32)RxPacket, MAX_PKT_LEN_RCV);
+	Xil_DCacheFlushRange((u32)inputBuf_ptr, MAX_PKT_LEN_SEND);
 
-	xil_printf("Data sent: \r\n");
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS_SEND; Index++) {
-		xil_printf("0x%X ", (unsigned int)TxPacket[Index]);
+	if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) outputBuf_ptr, MAX_PKT_LEN_RCV, XAXIDMA_DEVICE_TO_DMA)) {
+		return XST_FAILURE;
 	}
-	xil_printf("\r\n");
-	xil_printf("Data received: \r\n");
-	for(Index = 0; Index < MAX_PKT_LEN_WORDS_RCV; Index++) {
-		xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
-	}
-	xil_printf("\r\n");
 
-	return XST_SUCCESS;
+	if (XST_SUCCESS != XAxiDma_SimpleTransfer(AxiDma,(u32) inputBuf_ptr, MAX_PKT_LEN_SEND, XAXIDMA_DMA_TO_DEVICE)) {
+		return XST_FAILURE;
+	}
+
+	while (XAxiDma_Busy(AxiDma,XAXIDMA_DMA_TO_DEVICE)) {
+		/* Wait */
+	}
+	while (XAxiDma_Busy(AxiDma,XAXIDMA_DEVICE_TO_DMA)) {
+		/* Wait */
+	}
+
+	Xil_DCacheInvalidateRange((u32)outputBuf_ptr, MAX_PKT_LEN_RCV);
+
+	return true;
 }

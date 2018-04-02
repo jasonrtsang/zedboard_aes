@@ -100,9 +100,7 @@ void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId
 void IntrHandler(void *CallBackRef, int Bank, u32 Status);
 
 /**********************************  DMA ************************************/
-int CheckData(void);
 int XAxiDma_Init(XAxiDma* AxiDma, u16 DeviceId);
-int XAxiDma_SimplePollExample(XAxiDma* AxiDma, u16 DeviceId, u16 run_num);
 bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *outputBuf_ptr, enum AESMODE mode);
 
 #endif /* SRC_COMMON_H_ */
