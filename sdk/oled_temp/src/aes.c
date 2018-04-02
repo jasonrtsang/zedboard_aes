@@ -64,9 +64,6 @@ NOTE:   String length must be evenly divisible by 16byte (str_len % 16 == 0)
   #define MULTIPLY_AS_A_FUNCTION 0
 #endif
 
-#define ENCRYPTION 0
-#define DECRYPTION 1
-
 
 /*****************************************************************************/
 /* Private variables:                                                        */

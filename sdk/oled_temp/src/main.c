@@ -107,6 +107,11 @@ int main(void){
 							    "                ",
 							    "                "};
 
+	char* cancelConfirmation[] = {"                ",
+							      "   Cancelled!   ",
+							      "                ",
+							      "                "};
+
 	char* processingScreen[] = {"                ",
 							    "   Processing   ",
 							    "      ....      ",
@@ -133,8 +138,10 @@ int main(void){
 	static XGpioPs Gpio; /* The driver instance for GPIO Device. */
 
 	/* Encryption states */
+#if 0
     static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
     struct AES_ctx ctx; // Context
+#endif
     uint32_t fileSizeRead;
 
 
@@ -168,6 +175,9 @@ int main(void){
 	XGpioPs_SetDirectionPin(&Gpio, pbsw, 0x0);
 	SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
+	/* DMA */
+	XAxiDma AxiDma;
+	XAxiDma_Init(&AxiDma, DMA_DEV_ID);
 
 welcome_screen:
 	/* Start Screen */
@@ -176,8 +186,8 @@ welcome_screen:
 	}
 
 	while(1) {
-		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
 		init_sd(NULL);
+		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
 		init_sd(&fatfs);
 		cancelFlag = false;
 		switch (choice) {
@@ -215,22 +225,35 @@ ecb_file_encrypt:
 								print_screen(processingScreen);
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
-		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
+		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
-		                        /* Init roundkeys and process */
-								AES_init_ctx(&ctx, switchKey);
-								if (!AES_ECB_encrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
-									printf("ECB encryption CANCELED\r\n");
-									break;
+
+		                        // Padding need to fix...
+		                        int length = 16 * ((fileSizeRead + 15) / 16);
+
+								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
+								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
+								for (int i = 0; i < length; i += AES_BLOCKLEN)
+								{
+									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, ENCRYPTION);
+									inputBuf_ptr += AES_BLOCKLEN/4;
+									outputBuf_ptr += AES_BLOCKLEN/4;
+								    if (cancelFlag) {
+										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+											cancelFlag = false;
+											goto ecb_file_encrypt_end;
+										}
+								    }
 								}
 								/* Create output file */
-								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
+								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}
 							}
 						}
+ecb_file_encrypt_end:
 						free(fileList);
 						free(fileListMenu);
 						break;
@@ -242,15 +265,16 @@ ecb_file_decrypt:
 						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
 						if (choice > 0) {
 							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
-								goto ecb_file_encrypt;
+								goto ecb_file_decrypt;
 							} else {
 								// Get key value
 								getKeyValue(&gpioSwitches, switchKey);
 							}
 							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
-								goto ecb_file_encrypt;
+								goto ecb_file_decrypt;
 							} else {
 								print_screen(processingScreen);
+#if 0
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
@@ -264,6 +288,35 @@ ecb_file_decrypt:
 								}
 								/* Create output file */
 								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
+								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+									break;
+								}
+#endif
+		                        /* Read the current specified file */
+		                        fileSizeRead = 0;
+		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
+		                            break;
+		                        }
+
+		                        // Padding need to fix...
+		                        int length = 16 * ((fileSizeRead + 15) / 16);
+
+								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
+								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
+								for (int i = 0; i < length; i += AES_BLOCKLEN)
+								{
+									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, DECRYPTION);
+									inputBuf_ptr += AES_BLOCKLEN/4;
+									outputBuf_ptr += AES_BLOCKLEN/4;
+								    if (cancelFlag) {
+										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+											cancelFlag = false;
+											goto ecb_file_encrypt_end;
+										}
+								    }
+								}
+
+								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}
