@@ -155,7 +155,7 @@ bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t 
 * @note     None
 *
 ******************************************************************************/
-bool read_from_file(const char *sdFile, uint8_t *readBuf, uint32_t *readSize)
+bool read_from_file(const char *sdFile, uint32_t *readBuf, uint32_t *readSize)
 {
 	FIL fil;
     UINT numOfBytesRead; // Not used

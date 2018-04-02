@@ -107,6 +107,11 @@ int main(void){
 							    "                ",
 							    "                "};
 
+	char* cancelConfirmation[] = {"                ",
+							      "   Cancelled!   ",
+							      "                ",
+							      "                "};
+
 	char* processingScreen[] = {"                ",
 							    "   Processing   ",
 							    "      ....      ",
@@ -133,8 +138,10 @@ int main(void){
 	static XGpioPs Gpio; /* The driver instance for GPIO Device. */
 
 	/* Encryption states */
+#if 0
     static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
     struct AES_ctx ctx; // Context
+#endif
     uint32_t fileSizeRead;
 
 
@@ -222,15 +229,23 @@ ecb_file_encrypt:
 		                            break;
 		                        }
 
+		                        // Padding need to fix...
+		                        int length = 16 * ((fileSizeRead + 15) / 16);
+
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
-								for (int i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
 									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, ENCRYPTION);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
+								    if (cancelFlag) {
+										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+											cancelFlag = false;
+											goto ecb_file_encrypt_end;
+										}
+								    }
 								}
-
 								/* Create output file */
 								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
@@ -238,6 +253,7 @@ ecb_file_encrypt:
 								}
 							}
 						}
+ecb_file_encrypt_end:
 						free(fileList);
 						free(fileListMenu);
 						break;
@@ -282,30 +298,24 @@ ecb_file_decrypt:
 		                            break;
 		                        }
 
+		                        // Padding need to fix...
+		                        int length = 16 * ((fileSizeRead + 15) / 16);
 
-//								u8* RxPacket = (u8 *) RX_BUFFER_BASE;
-//								u8* TxPacket = (u8 *) TX_BUFFER_BASE;
-//								// Let's print out the input data first
-//								xil_printf("Input: \r\n");
-//								for(int Index = 0; Index < fileSizeRead; Index++) {
-//									xil_printf("0x%X ", (u8)TxPacket[Index]);
-//								}
-//								xil_printf("\r\n");
-//								// Temp pointers that the for loop can move around as it wants
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
-								for (int i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
 									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, DECRYPTION);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
+								    if (cancelFlag) {
+										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+											cancelFlag = false;
+											goto ecb_file_encrypt_end;
+										}
+								    }
 								}
-//								xil_printf("Output: \r\n");
-//								for(int Index = 0; Index < fileSizeRead; Index++) {
-//									xil_printf("0x%X ", (unsigned int)RxPacket[Index]);
-//								}
-//								xil_printf("\r\n");
-								/* Create output file */
+
 								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
