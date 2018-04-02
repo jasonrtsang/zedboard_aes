@@ -181,8 +181,8 @@ welcome_screen:
 	}
 
 	while(1) {
-		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
 		init_sd(NULL);
+		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
 		init_sd(&fatfs);
 		cancelFlag = false;
 		switch (choice) {
