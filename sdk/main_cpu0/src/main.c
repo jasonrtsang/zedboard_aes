@@ -167,6 +167,7 @@ ecb_menu:
 				}
 				break;
 			case 5: // Exit
+				oled_clear();
 				return 0;
 			default:
 				break;

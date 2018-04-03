@@ -121,6 +121,23 @@ void oled_init(void) {
 /*****************************************************************************/
 /**
 *
+* Clears the OLED screen
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+void oled_clear(void) {
+	clear();
+}
+
+/*****************************************************************************/
+/**
+*
 * Print message to OLED screen
 *
 * @param    char* printLines[]        : Message to print

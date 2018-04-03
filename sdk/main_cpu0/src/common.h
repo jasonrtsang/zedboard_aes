@@ -57,6 +57,7 @@ extern bool cancelFlag;
 
 /********************************** OLED *************************************/
 void   oled_init(void);
+void   oled_clear(void);
 void   oled_print_screen(char* printLines[]);
 bool   oled_confirmation_screen(char* printLines[]);
 int    oled_selection_screen(char* printLines[], int numOfLines);
