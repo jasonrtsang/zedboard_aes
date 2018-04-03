@@ -1,9 +1,11 @@
 /*
  *  main.c
+
  *
  *  Created on: Mar 17, 2018
  *      Author: jrtsang
  */
+
 #include "common.h"
 
 
@@ -20,11 +22,11 @@
 #define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
 #define FILESIZE_VAL    (*(volatile unsigned long *)(0xFFFF0004))
 
+#define AES_BLOCKLEN 16 //Block length in bytes AES is 128b block only
 
-bool cancelFlag = false;
 
-void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
-	/* Fixed keys and initialization vector (cbc) */
+void getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
+	// Fixed key lookup table, DO NOT MODIFY
 	const uint8_t keys[] = {
 			0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7,
 			0x89, 0xb3, 0x6e, 0xae, 0x31, 0xa4, 0x73, 0x7a, 0xda, 0x5c, 0x4a, 0x41, 0x63, 0x33, 0x11, 0xbd,
@@ -62,6 +64,7 @@ void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
 	uint8_t dipValue;
 	int i;
 
+	// Convert dipValue to switchKey from table above
 	dipValue = XGpio_DiscreteRead(gpioSwitches, 1);
 	for (i = 0; i < 16; i++) {
 		switchKey[i] = keys[dipValue+i*16];
@@ -71,11 +74,6 @@ void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
 
 int main(void){
 
-
-
-	static XGpio gpioBtn;
-	int choice = 0;
-
 	const uint8_t iv_key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
 	/* ENSURE LENGTHS OF 16 PER LINE */
@@ -84,16 +82,12 @@ int main(void){
 								   "  & DECRYPTION  ",
 								   "                "};
 	char* mainMenu[] = {"Main Menu:      ",
-						"  List files    ",
 						"  ECB mode      ",
 						"  CBC mode      ",
-						"  Reformat      ",
-						"  Test bin      ",
 						"  Ethernet mode ",
+						"  Reformat      ",
 						"  Exit          "};
-	char* testBinMenu[] = {"Choose BIN size:",
-			               "  16 bytes      ",
-						   "  64 bytes      "};
+
 	char* reformatConfirmation[] = {"Erase/ format SD",
 							        "card to FATFS...",
 									" Are you sure?  ",
@@ -137,67 +131,50 @@ int main(void){
 							    "      ....      ",
 							    "                "};
 
-
 	static FATFS fatfs; // File system format
+
+	static XGpio gpioDpad;
+	int choice = 0;
 
 /* START */
 	print("##### Application Starts #####\n\n");
 	/* Initialization */
 	init_platform();
 	/* D-pad buttons */
-	if (XST_SUCCESS != XGpio_Initialize(&gpioBtn, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
+	if (XST_SUCCESS != XGpio_Initialize(&gpioDpad, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
 		printf("UH OH: BTN5 GPIO initialization failed\r\n");
 	}
-	XGpio_SetDataDirection(&gpioBtn, 1, 1);
+	XGpio_SetDataDirection(&gpioDpad, 1, 1);
 	/* SD card */
 	char** fileList;
 	char** fileListMenu;
 	int numOfFiles;
-	/* Interrupt cancel button */
-	static XScuGic Intc; /* The Instance of the Interrupt Controller Driver */
-	static XGpioPs Gpio; /* The driver instance for GPIO Device. */
 
-	/* Encryption states */
-#if 0
-    static uint8_t inputBuf[10*1024*1024] __attribute__ ((aligned(32))); // 10mb buffers [1024*1024 == 1mb, 1024 == 1kb]
-    struct AES_ctx ctx; // Context
-#endif
+
+
     uint32_t fileSizeRead;
 
 
 	/* Switches and LEDs Setup*/
 	XGpio gpioSwitches;
-//	XGpio gpioLeds;
 	uint8_t switchKey[16];
 
 	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
 		printf("UH OH: GPIO SWS initialization failed\r\n");
 	};
-//	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
-//		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
-//	};
 
 	// Set the direction of the bits in the GPIO.
 	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs).
 	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
 	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
-//	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
-	/* MIO51 BTN9 Setup*/
-	XGpioPs_Config *GPIOConfigPtr;
-	GPIOConfigPtr = XGpioPs_LookupConfig(XPAR_XGPIOPS_0_DEVICE_ID);
-	if (XGpioPs_CfgInitialize(&Gpio, GPIOConfigPtr,GPIOConfigPtr->BaseAddr) != XST_SUCCESS) {
-		 print("GPIO INIT FAILED\n\r");
-		return XST_FAILURE;
-	}
 
-	// Set direction input pin
-	XGpioPs_SetDirectionPin(&Gpio, pbsw, 0x0);
-	SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
+	/* Gic */
+	gic_cancel_init();
 
 	/* DMA */
-	static XAxiDma AxiDma;
-	XAxiDma_Init(&AxiDma, DMA_DEV_ID);
+	static XAxiDma axiDma;
+	dma_axi_init(&axiDma);
 
 	/* Inter-processor */
 	//Disable cache on OCM
@@ -212,51 +189,38 @@ int main(void){
 
 welcome_screen:
 	/* Start Screen */
-	while(!confirmation_screen(&gpioBtn, welcomeConfirmation)) {
+	while(!oled_confirmation_screen(&gpioDpad, welcomeConfirmation)) {
 	}
 
 	while(1) {
-		init_sd(NULL);
-		choice = selection_screen(&gpioBtn, mainMenu, sizeof(mainMenu)/4);
-		init_sd(&fatfs);
+		choice = oled_selection_screen(&gpioDpad, mainMenu, sizeof(mainMenu)/4);
+		sd_init(&fatfs);
 		cancelFlag = false;
 		switch (choice) {
-			case 1:
-				fileList = list_all_files(&numOfFiles);
-				fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-file_list:
-				choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
-				// Hack to disable center button and only have back button exit
-				if(choice > 0) {
-					goto file_list;
-				}
-				free(fileList);
-				free(fileListMenu);
-				break;
-			case 2: // ECB
-				choice = selection_screen(&gpioBtn, ecbMenu, sizeof(ecbMenu)/4);
+			case 1: // ECB
+				choice = oled_selection_screen(&gpioDpad, ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
 						// Choice is the filename so do stuff
-						fileList = list_all_files(&numOfFiles);
-						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
+						fileList = sd_list_all_files(&numOfFiles);
+						fileListMenu = oled_format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
 ecb_file_encrypt:
-						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
+						choice = oled_selection_screen(&gpioDpad, fileListMenu, numOfFiles+1);
 						if (choice > 0) {
-							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
+							if(!oled_confirmation_screen(&gpioDpad, keyConfirmation)) {
 								goto ecb_file_encrypt;
 							} else {
 								// Get key value
 								getKeyValue(&gpioSwitches, switchKey);
 							}
-							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
+							if(!oled_confirmation_screen(&gpioDpad, encryptConfirmation)) {
 								goto ecb_file_encrypt;
 							} else {
-								print_screen(processingScreen);
+								oled_print_screen(processingScreen);
 
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
-		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
+		                        if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
 
@@ -267,27 +231,28 @@ ecb_file_encrypt:
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
 
 		                        // Init registers
-		                        AES_Process_init(switchKey, ENCRYPTION);
+		                        dma_aes_process_init(switchKey, ENCRYPTION);
 
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
-									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
+									dma_aes_process(&axiDma, inputBuf_ptr, outputBuf_ptr);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {
-										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+										if(oled_confirmation_screen(&gpioDpad, cancelConfirmation)) {
 											cancelFlag = false;
+											COMM_VAL = 0;
 											goto ecb_file_encrypt_end;
 										}
 								    }
 								}
 								/* Create output file */
-								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+								sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 
 								COMM_VAL = 0;
-								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+								if(!oled_confirmation_screen(&gpioDpad, doneConfirmation)) {
 									break;
 								}
 
@@ -298,43 +263,27 @@ ecb_file_encrypt_end:
 						free(fileListMenu);
 						break;
 					case 2: // Decrypt
+#if 0
 						// Choice is the filename so do stuff
-						fileList = list_all_files(&numOfFiles);
+						fileList = sd_list_all_files(&numOfFiles);
 						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
 ecb_file_decrypt:
-						choice = selection_screen(&gpioBtn, fileListMenu, numOfFiles+1);
+						choice = selection_screen(&gpioDpad, fileListMenu, numOfFiles+1);
 						if (choice > 0) {
-							if(!confirmation_screen(&gpioBtn, keyConfirmation)) {
+							if(!confirmation_screen(&gpioDpad, keyConfirmation)) {
 								goto ecb_file_decrypt;
 							} else {
 								// Get key value
 								getKeyValue(&gpioSwitches, switchKey);
 							}
-							if(!confirmation_screen(&gpioBtn, encryptConfirmation)) {
+							if(!confirmation_screen(&gpioDpad, encryptConfirmation)) {
 								goto ecb_file_decrypt;
 							} else {
 								print_screen(processingScreen);
-#if 0
+
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
-		                        if(!read_from_file(fileList[choice-1], inputBuf, &fileSizeRead)) {
-		                            break;
-		                        }
-		                        /* Init roundkeys and process */
-								AES_init_ctx(&ctx, switchKey);
-								if (!AES_ECB_decrypt_buffer(&ctx, inputBuf, fileSizeRead)) {
-									printf("ECB decryption CANCELED\r\n");
-									break;
-								}
-								/* Create output file */
-								write_to_file(fileList[choice-1], inputBuf, fileSizeRead);
-								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
-									break;
-								}
-#endif
-		                        /* Read the current specified file */
-		                        fileSizeRead = 0;
-		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
+		                        if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
 
@@ -352,51 +301,42 @@ ecb_file_decrypt:
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {
-										if(confirmation_screen(&gpioBtn, cancelConfirmation)) {
+										if(confirmation_screen(&gpioDpad, cancelConfirmation)) {
 											cancelFlag = false;
 											goto ecb_file_encrypt_end;
 										}
 								    }
 								}
 
-								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
-								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+								sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+								if(!confirmation_screen(&gpioDpad, doneConfirmation)) {
 									break;
 								}
 							}
 						}
 						free(fileList);
 						free(fileListMenu);
+#endif
 						break;
 					default:
 						break;
 				}
 				break;
-			case 3: // CBC
+			case 2: // CBC
+				break;
+			case 3: // Ethernet
 				break;
 			case 4: // Reformat
-				if(!confirmation_screen(&gpioBtn, reformatConfirmation)) {
+				if(!oled_confirmation_screen(&gpioDpad, reformatConfirmation)) {
 					break;
 				}
 				// check if it failed, print on screen
-				format_sd();
-				if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
+				sd_format();
+				if(!oled_confirmation_screen(&gpioDpad, doneConfirmation)) {
 					break;
 				}
 				break;
-			case 5: // Test BIN
-				choice = selection_screen(&gpioBtn, testBinMenu, sizeof(testBinMenu)/4);
-				// check if it failed, print on screen
-				if (create_test_bin(choice)) {
-					if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
-						break;
-					}
-				}
-				break;
-			case 6: // Ethernet
-				break;
-			case 7: // Exit
-				usleep(DEBOUNCE_DELAY);
+			case 5: // Exit
 				goto welcome_screen;
 			default:
 				break;

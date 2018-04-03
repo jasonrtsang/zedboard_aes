@@ -7,7 +7,9 @@
 
 #include "common.h"
 
+/******************************* Definitions *********************************/
 const TCHAR *Path = "0:/"; // Base directory of SD
+/*****************************************************************************/
 
 /*****************************************************************************/
 /**
@@ -20,14 +22,20 @@ const TCHAR *Path = "0:/"; // Base directory of SD
 *
 * @note     None
 *
-******************************************************************************/
-bool init_sd(FATFS* fatfs)
+**/
+/*****************************************************************************/
+bool sd_init(FATFS* fatfs)
 {
-    /* Register SD volume, initialize device */
+    // Register SD volume, initialize device
     if(f_mount(fatfs, Path, 0) != FR_OK) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with mounting the SD card...\r\n");
+#endif
         return false;
     } else {
+#if UART_PRINT
+        printf("Done!\r\n");
+#endif
     	return true;
     }
 }
@@ -37,67 +45,28 @@ bool init_sd(FATFS* fatfs)
 *
 * Formatting SD card back to FAT32 - will erase all content
 *
-* @param    FATFS* fatfs              : Pointer to file system
+* @param    None
 *
 * @return   true if successful, false otherwise
 *
 * @note     None
 *
-******************************************************************************/
-bool format_sd(void)
+**/
+/*****************************************************************************/
+bool sd_format(void)
 {
     printf("Formatting SD Card to FATFS..\r\n");
     if(f_mkfs(Path, 0, 0) != FR_OK) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with formatting the SD card...\r\n");
         printf("Is the SD card plugged in and not locked?\r\n");
+#endif
         return false;
     } else {
+#if UART_PRINT
         printf("Done!\r\n");
+#endif
         return true;
-    }
-}
-
-/*****************************************************************************/
-/**
-*
-* Create 16 or 64 bytes test binary
-*
-* @param    int choice                : menu selection for test binary size
-*
-* @return   None
-*
-* @note     None
-*
-******************************************************************************/
-bool create_test_bin(int choice)
-{
-	int i;
-	uint8_t outputBuf[64] __attribute__ ((aligned(32)));
-
-    const char SD_TestBin[] = "TEST.BIN";
-    uint32_t fileSize; // in bytes
-    printf("Creating TEST.BIN...\r\n");
-    switch(choice) {
-        case 1:
-            fileSize = TESTBIN_SIZE_16;
-            break;
-        case 2:
-            fileSize = TESTBIN_SIZE_64;
-            break;
-        default:
-        	printf("UH OH: I shouldn't be here...\r\n");
-        	return false;
-    }
-    /* Populate TEST.BIN with incrementing index */
-    for(i = 0; i < fileSize; i++) {
-        outputBuf[i] = i;
-    }
-    if(!write_to_file(SD_TestBin, outputBuf, fileSize)) {
-    	printf("Is the SD card plugged in and not locked?\r\n");
-    	return false;
-    } else {
-    	printf("Done!\r\n");
-    	return true;
     }
 }
 
@@ -114,27 +83,34 @@ bool create_test_bin(int choice)
 *
 * @note     None
 *
-******************************************************************************/
-bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t writeSize)
+**/
+/*****************************************************************************/
+bool sd_write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t writeSize)
 {
 	FIL fil;
     UINT numOfBytesWritten; // Not used
-    /* Create file */
+    // Create file
     if(f_open(&fil, sdFile, FA_CREATE_ALWAYS | FA_WRITE | FA_READ)) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with creating the file...\r\n");
+#endif
         return false;
     }
-    /* Pointer to beginning of file */
+    // Pointer to beginning of file
     if(f_lseek(&fil, 0)) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with getting start of file...\r\n");
+#endif
         return false;
     }
-    /* Write data to file */
+    // Write data to file
     if(f_write(&fil, (const void*)writeBuf, writeSize, &numOfBytesWritten)) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with writing content of file...\r\n");
+#endif
         return false;
     }
-    /* Close file */
+    // Close file
     if(f_close(&fil)) {
         return false;
     }
@@ -154,37 +130,44 @@ bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t 
 *
 * @note     None
 *
-******************************************************************************/
-bool read_from_file(const char *sdFile, uint32_t *readBuf, uint32_t *readSize)
+**/
+/*****************************************************************************/
+bool sd_read_from_file(const char *sdFile, uint32_t *readBuf, uint32_t *readSize)
 {
 	FIL fil;
     UINT numOfBytesRead; // Not used
-    /* Open the file */
+    // Open the file
     if(f_open(&fil, sdFile, FA_OPEN_EXISTING | FA_READ) != FR_OK) {
+#if UART_PRINT
         printf("UH OH: Could not find file, please specify one\r\n");
+#endif
         return false;
     }
-    /* Set pointer to beginning of file */
+    // Set pointer to beginning of file
     if(f_lseek(&fil, 0)) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with getting start of file...\r\n");
+#endif
         return false;
     }
-    /* Read data from file */
+    // Read data from file
     if(f_read(&fil, (void*)readBuf, fil.fsize, &numOfBytesRead)) {
+#if UART_PRINT
         printf("UH OH: Something went wrong with reading content of file...\r\n");
+#endif
         return false;
     }
-    /* Pass file size */
+    // Pass file size
     *readSize = fil.fsize;
-    /* Close file */
+    // Close file
     if(f_close(&fil)) {
         return false;
     }
     return true;
 }
 
-
 /************************** FATFS FILE LIST PORT http://elm-chan.org/fsw/ff/doc/findfirst.html *****************************/
+/******************************************************* START *************************************************************/
 
 /* SBCS up-case tables (\x80-\xFF) */
 #define TBL_CT437  {0x80,0x9A,0x45,0x41,0x8E,0x41,0x8F,0x80,0x45,0x45,0x45,0x49,0x49,0x49,0x8E,0x8F, \
@@ -344,7 +327,7 @@ static const BYTE *ExCvt, *DbcTbl;	/* Pointer to current SBCS up-case table and 
 
 /* Test if the character is DBC 1st byte */
 static
-int dbc_1st (BYTE c)
+int _dbc_1st (BYTE c)
 {
 	/* Variable code page */
 	if (DbcTbl && c >= DbcTbl[0]) {
@@ -356,7 +339,7 @@ int dbc_1st (BYTE c)
 
 /* Test if the character is DBC 2nd byte */
 static
-int dbc_2nd (BYTE c)
+int _dbc_2nd (BYTE c)
 {
 	/* Variable code page */
 	if (DbcTbl && c >= DbcTbl[4]) {
@@ -371,7 +354,7 @@ int dbc_2nd (BYTE c)
 /* Pattern matching                                                      */
 /*-----------------------------------------------------------------------*/
 static
-DWORD get_achar (		/* Get a character and advances ptr */
+DWORD _get_achar (		/* Get a character and advances ptr */
 	const TCHAR** ptr	/* Pointer to pointer to the ANSI/OEM or Unicode string */
 )
 {
@@ -381,14 +364,14 @@ DWORD get_achar (		/* Get a character and advances ptr */
 	chr = (BYTE)*(*ptr)++;				/* Get a byte */
 	if (IsLower(chr)) chr -= 0x20;		/* To upper ASCII char */
 	if (ExCvt && chr >= 0x80) chr = ExCvt[chr - 0x80];	/* To upper SBCS extended char */
-	if (dbc_1st((BYTE)chr)) {	/* Get DBC 2nd byte if needed */
-		chr = dbc_2nd((BYTE)**ptr) ? chr << 8 | (BYTE)*(*ptr)++ : 0;
+	if (_dbc_1st((BYTE)chr)) {	/* Get DBC 2nd byte if needed */
+		chr = _dbc_2nd((BYTE)**ptr) ? chr << 8 | (BYTE)*(*ptr)++ : 0;
 	}
 	return chr;
 }
 
 static
-int pattern_matching (	/* 0:not matched, 1:matched */
+int _pattern_matching (	/* 0:not matched, 1:matched */
 	const TCHAR* pat,	/* Matching pattern */
 	const TCHAR* nam,	/* String to be tested */
 	int skip,			/* Number of pre-skip chars (number of ?s) */
@@ -400,7 +383,7 @@ int pattern_matching (	/* 0:not matched, 1:matched */
 	int nm, nx;
 
 	while (skip--) {				/* Pre-skip name chars */
-		if (!get_achar(&nam)) return 0;	/* Branch mismatched if less name chars */
+		if (!_get_achar(&nam)) return 0;	/* Branch mismatched if less name chars */
 	}
 	if (*pat == 0 && inf) return 1;	/* (short circuit) */
 
@@ -412,15 +395,15 @@ int pattern_matching (	/* 0:not matched, 1:matched */
 				do {				/* Analyze the wildcard block */
 					if (*pp++ == '?') nm++; else nx = 1;
 				} while (*pp == '?' || *pp == '*');
-				if (pattern_matching(pp, np, nm, nx)) return 1;	/* Test new branch (recurs upto number of wildcard blocks in the pattern) */
+				if (_pattern_matching(pp, np, nm, nx)) return 1;	/* Test new branch (recurs upto number of wildcard blocks in the pattern) */
 				nc = *np; break;	/* Branch mismatched */
 			}
-			pc = get_achar(&pp);	/* Get a pattern char */
-			nc = get_achar(&np);	/* Get a name char */
+			pc = _get_achar(&pp);	/* Get a pattern char */
+			nc = _get_achar(&np);	/* Get a name char */
 			if (pc != nc) break;	/* Branch mismatched? */
 			if (pc == 0) return 1;	/* Branch matched? (matched at end of both strings) */
 		}
-		get_achar(&nam);			/* nam++ */
+		_get_achar(&nam);			/* nam++ */
 	} while (inf && nc);			/* Retry until end of name if infinite search is specified */
 
 	return 0;
@@ -429,7 +412,7 @@ int pattern_matching (	/* 0:not matched, 1:matched */
 /*-----------------------------------------------------------------------*/
 /* Find Next File                                                        */
 /*-----------------------------------------------------------------------*/
-FRESULT f_findnext (
+FRESULT _f_findnext (
 	DIR* dp,		/* Pointer to the open directory object */
 	FILINFO* fno,	/* Pointer to the file information structure */
 	TCHAR* pat
@@ -441,7 +424,7 @@ FRESULT f_findnext (
 	for (;;) {
 		res = f_readdir(dp, fno);		/* Get a directory item */
 		if (res != FR_OK || !fno || !fno->fname[0]) break;	/* Terminate if any error or end of directory */
-		if (pattern_matching(pat, fno->fname, 0, 0)) break;		/* Test for the file name */
+		if (_pattern_matching(pat, fno->fname, 0, 0)) break;		/* Test for the file name */
 	}
 	return res;
 }
@@ -449,7 +432,7 @@ FRESULT f_findnext (
 /*-----------------------------------------------------------------------*/
 /* Find First File                                                       */
 /*-----------------------------------------------------------------------*/
-FRESULT f_findfirst (
+FRESULT _f_findfirst (
 	DIR* dp,				/* Pointer to the blank directory object */
 	FILINFO* fno,			/* Pointer to the file information structure */
 	const TCHAR* path,		/* Pointer to the directory to open */
@@ -460,36 +443,39 @@ FRESULT f_findfirst (
 
 	res = f_opendir(dp, path);		/* Open the target directory */
 	if (res == FR_OK) {
-		res = f_findnext(dp, fno, pattern);	/* Find the first item */
+		res = _f_findnext(dp, fno, pattern);	/* Find the first item */
 	}
 	return res;
 }
+
+/************************** FATFS FILE LIST PORT http://elm-chan.org/fsw/ff/doc/findfirst.html *****************************/
+/******************************************************** END **************************************************************/
 
 /*****************************************************************************/
 /**
 *
 * Search a directory for objects and display it
 *
-* @param    int choice                : menu selection for test binary size
+* @param    int *numOfFiles		: Number of files on SD
 *
-* @return   None
+* @return   char **				: List of files on SD
 *
 * @note     None
 *
-******************************************************************************/
-char** list_all_files(int* numOfFiles)
+**/
+/*****************************************************************************/
+char** sd_list_all_files(int *numOfFiles)
 {
-    FRESULT fr;     /* Return value */
-    DIR dj;         /* Directory search object */
-    FILINFO fno;    /* File information */
-    // Wildcard pattern as all
-    TCHAR* pat = "*";
+    FRESULT fr; // Return check
+    DIR dj; // Directory object
+    FILINFO fno; // File object
+    TCHAR* pat = "*"; // Wildcard pattern set to all
     int i = 0, fileCount = 0;
 
     // First pass to count the amount of files
-    fr = f_findfirst(&dj, &fno, Path, pat);
-    while (fr == FR_OK && fno.fname[0]) {
-    	fr = f_findnext(&dj, &fno, pat);
+    fr = _f_findfirst(&dj, &fno, Path, pat);
+    while(fr == FR_OK && fno.fname[0]) {
+    	fr = _f_findnext(&dj, &fno, pat);
     	fileCount++;
     }
     f_closedir(&dj);
@@ -498,13 +484,16 @@ char** list_all_files(int* numOfFiles)
     char** names = malloc(fileCount * sizeof(char *));
 
     // Second pass to allocate memory of file names and doing a string copy
-    fr = f_findfirst(&dj, &fno, Path, pat);  /* Start to search for files */
-    while (fr == FR_OK && fno.fname[0]) {         /* Repeat while an item is found */
-        printf("%s\n", fno.fname);                /* Display the object name */
+    fr = _f_findfirst(&dj, &fno, Path, pat); // Start to search for files
+    // Repeat while an item is found
+    while(fr == FR_OK && fno.fname[0]) {
+#if UART_PRINT
+        printf("%s\n", fno.fname); // Display the object name
+#endif
         names[i] = malloc(sizeof(fno.fname) * sizeof(char));
         strcpy(names[i], fno.fname);
         i++;
-        fr = f_findnext(&dj, &fno, pat);               /* Search for next item */
+        fr = _f_findnext(&dj, &fno, pat); // Find next item
     }
 
     f_closedir(&dj);
