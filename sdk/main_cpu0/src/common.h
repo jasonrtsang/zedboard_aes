@@ -38,23 +38,27 @@ typedef uint8_t bool;
 
 extern bool cancelFlag;
 
-enum AESMODE {ENCRYPTION = 0, DECRYPTION = 1};
+enum AESMODE {ENCRYPTION, DECRYPTION};
+enum STATUS {DONE, FAILED, BACK, CANCELLED};
 
 // DMA
 #define MEM_BASE_ADDR  (XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
 #define TX_BUFFER_BASE (MEM_BASE_ADDR + 0x00100000)
 #define RX_BUFFER_BASE (MEM_BASE_ADDR + 0x06500000) // Receiving buffer start 100MB after TX_BUFFER_BASE
 
+// CPU1
+#define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
+#define FILESIZE_VAL    (*(volatile unsigned long *)(0xFFFF0004))
 
 /********************************** OLED *************************************/
-void   oled_dpad_init(void);
+void   oled_init(void);
 void   oled_print_screen(char* printLines[]);
 bool   oled_confirmation_screen(char* printLines[]);
 int    oled_selection_screen(char* printLines[], int numOfLines);
 char** oled_format_fileList(char* inputFiles[], int numOfFiles);
 
 /******************************** INTERRUPT *********************************/
-bool gic_cancel_init(void);
+bool gic_init(void);
 
 /*********************************** SD *************************************/
 bool   sd_init(FATFS* fatfs);
@@ -64,8 +68,11 @@ bool   sd_read_from_file(const char *sdFile, uint32_t *readBuf, uint32_t *readSi
 char** sd_list_all_files(int *numOfFiles);
 
 /**********************************  DMA ************************************/
-bool dma_axi_init(XAxiDma *axiDma);
-bool dma_aes_process_init(const uint8_t *key, enum AESMODE mode);
-bool dma_aes_process(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *outputBuf);
+bool dma_init(XAxiDma *axiDma);
+bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *outputBuf);
+
+/**********************************  AES ************************************/
+void aes_init(void);
+enum STATUS aes_sd_process_run(enum AESMODE mode);
 
 #endif /* SRC_COMMON_H_ */

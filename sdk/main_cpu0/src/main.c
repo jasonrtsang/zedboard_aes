@@ -74,8 +74,9 @@ void getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 void main_initialization(void) {
 
 	init_platform();
-    oled_dpad_init();
-    gic_cancel_init();
+    oled_init();
+    gic_init();
+    aes_init();
 
 }
 
@@ -134,6 +135,11 @@ int main(void){
 							      "                ",
 							      "                "};
 
+	char* failedConfirmation[] = {"    Uh oh...    ",
+							      " something went ",
+							      "    wrong...    ",
+							      "                "};
+
 	char* processingScreen[] = {"                ",
 							    "   Processing   ",
 							    "      ....      ",
@@ -159,7 +165,7 @@ int main(void){
 
 
     main_initialization();
-    dma_axi_init(&axiDma);
+    dma_init(&axiDma);
 
 
 
@@ -195,7 +201,7 @@ int main(void){
 	sev();
 
 
-
+	enum STATUS aesStatus;
 
 
 
@@ -211,69 +217,29 @@ welcome_screen:
 		cancelFlag = false;
 		switch (choice) {
 			case 1: // ECB
+ecb_file_encrypt:
 				choice = oled_selection_screen(ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
-						// Choice is the filename so do stuff
-						fileList = sd_list_all_files(&numOfFiles);
-						fileListMenu = oled_format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-ecb_file_encrypt:
-						choice = oled_selection_screen(fileListMenu, numOfFiles+1);
-						if (choice > 0) {
-							if(!oled_confirmation_screen(keyConfirmation)) {
+						aesStatus = aes_sd_process_run(ENCRYPTION);
+						switch(aesStatus) {
+							case DONE:
+								while(!oled_confirmation_screen(doneConfirmation));
+								break;
+							case FAILED:
+								while(!oled_confirmation_screen(failedConfirmation));
+								break;
+							case BACK:
 								goto ecb_file_encrypt;
-							} else {
-								// Get key value
-								getKeyValue(&gpioSwitches, switchKey);
-							}
-							if(!oled_confirmation_screen(encryptConfirmation)) {
-								goto ecb_file_encrypt;
-							} else {
-								oled_print_screen(processingScreen);
-
-		                        /* Read the current specified file */
-		                        fileSizeRead = 0;
-		                        if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
-		                            break;
-		                        }
-
-		                        FILESIZE_VAL = fileSizeRead;
-								COMM_VAL = 1;
-
-		                        // Padding need to fix...
-		                        int length = 16 * ((fileSizeRead + 15) / 16);
-
-		                        // Init registers
-		                        dma_aes_process_init(switchKey, ENCRYPTION);
-
-								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
-								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
-								for (int i = 0; i < length; i += AES_BLOCKLEN)
-								{
-									dma_aes_process(&axiDma, inputBuf_ptr, outputBuf_ptr);
-									inputBuf_ptr += AES_BLOCKLEN/4;
-									outputBuf_ptr += AES_BLOCKLEN/4;
-								    if (cancelFlag) {
-										if(oled_confirmation_screen(cancelConfirmation)) {
-											cancelFlag = false;
-											COMM_VAL = 0;
-											goto ecb_file_encrypt_end;
-										}
-								    }
-								}
-								/* Create output file */
-								sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
-
-								COMM_VAL = 0;
-								if(!oled_confirmation_screen(doneConfirmation)) {
-									break;
-								}
-
-							}
-						}
-ecb_file_encrypt_end:
-						free(fileList);
-						free(fileListMenu);
+								break;
+							case CANCELLED:
+								cancelFlag = false;
+								while(!oled_confirmation_screen(cancelConfirmation));
+								break;
+							default:
+								return false; // Shouldn't ever reach here
+								break;
+						};
 						break;
 					case 2: // Decrypt
 #if 0

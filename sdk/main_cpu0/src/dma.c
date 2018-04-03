@@ -30,7 +30,7 @@
 *
 **/
 /*****************************************************************************/
-bool dma_axi_init(XAxiDma *axiDma)
+bool dma_init(XAxiDma *axiDma)
 {
 	XAxiDma_Config *CfgPtr;
 	int Status;
@@ -67,46 +67,6 @@ bool dma_axi_init(XAxiDma *axiDma)
 /*****************************************************************************/
 /**
 *
-* Setting AES 128-bit key and encryption or decryption mode to IP block
-*
-* @param    const uint8_t* key        : 128-bit cipher key
-* 			enum AESMODE mode         : Cipher mode
-*
-* @return   true if successful, false otherwise
-*
-* @note     None
-*
-**/
-/*****************************************************************************/
-bool dma_aes_process_init(const uint8_t *key, enum AESMODE mode)
-{
-	uint32_t *aesProcessAddress = (uint32_t*)XPAR_AES_PROCESS_0_S00_AXI_BASEADDR;
-
-	// Set Key (first 4 registers (0-3))
-	*(aesProcessAddress+0) =  key[0] << 24 |  key[1] << 16 |  key[2] << 8 |  key[3];
-	*(aesProcessAddress+1) =  key[4] << 24 |  key[5] << 16 |  key[6] << 8 |  key[7];
-	*(aesProcessAddress+2) =  key[8] << 24 |  key[9] << 16 | key[10] << 8 | key[11];
-	*(aesProcessAddress+3) = key[12] << 24 | key[13] << 16 | key[14] << 8 | key[15];
-
-	// Set Mode (last register (9))
-	switch(mode) {
-		case ENCRYPTION:
-			*(aesProcessAddress+8) = 0x00000000;
-			break;
-		case DECRYPTION:
-			*(aesProcessAddress+8) = 0xFFFFFFFF;
-			break;
-		default:
-			return false;
-			break;
-	};
-
-	return true;
-}
-
-/*****************************************************************************/
-/**
-*
 * Streaming cipher states to the IP block
 *
 * @param    XAxiDma* axiDma           : Pointer to AXI DMA
@@ -119,7 +79,7 @@ bool dma_aes_process_init(const uint8_t *key, enum AESMODE mode)
 *
 **/
 /*****************************************************************************/
-bool dma_aes_process(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *outputBuf) {
+bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *outputBuf) {
 
 	// Flush the inputBuf before the DMA transfer, in case the Data Cache is enabled
 	Xil_DCacheFlushRange((u32)inputBuf, MAX_PKT_LEN_SEND);

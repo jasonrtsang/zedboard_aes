@@ -109,7 +109,7 @@ void _oled_refresh_oled(char* printLines[], int numOfLines, int index, bool menu
 *
 **/
 /*****************************************************************************/
-void oled_dpad_init(void) {
+void oled_init(void) {
 	if (XST_SUCCESS != XGpio_Initialize(&gpioDpad, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
 #if UART_PRINT
 		printf("UH OH: BTN5 GPIO initialization failed\r\n");

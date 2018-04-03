@@ -94,7 +94,7 @@ void _gic_cancel_interrupt_handler(void *callBackRef, int bank, u32 status)
 *
 **/
 /*****************************************************************************/
-bool gic_cancel_init(void)
+bool gic_init(void)
 {
 	static XScuGic gicInstancePtr; // Gic Interrupt controller instance
 	XScuGic_Config *intcConfig; // Interrupt controller for BTN9
