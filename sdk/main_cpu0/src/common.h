@@ -47,9 +47,10 @@ enum AESMODE {ENCRYPTION = 0, DECRYPTION = 1};
 
 
 /********************************** OLED *************************************/
+void   oled_dpad_init(void);
 void   oled_print_screen(char* printLines[]);
-bool   oled_confirmation_screen(XGpio* gpioBtn, char* printLines[]);
-int    oled_selection_screen(XGpio* gpioBtn, char* printLines[], int numOfLines);
+bool   oled_confirmation_screen(char* printLines[]);
+int    oled_selection_screen(char* printLines[], int numOfLines);
 char** oled_format_fileList(char* inputFiles[], int numOfFiles);
 
 /******************************** INTERRUPT *********************************/

@@ -10,6 +10,8 @@
 
 /******************************* Definitions *********************************/
 enum DPAD {CENTER = 1, DOWN = 2, UP = 16, LEFT = 4, RIGHT = 8};
+
+static XGpio gpioDpad;
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -97,6 +99,28 @@ void _oled_refresh_oled(char* printLines[], int numOfLines, int index, bool menu
 /*****************************************************************************/
 /**
 *
+* Initialize DPAD buttons as OLED display controls
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+void oled_dpad_init(void) {
+	if (XST_SUCCESS != XGpio_Initialize(&gpioDpad, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
+#if UART_PRINT
+		printf("UH OH: BTN5 GPIO initialization failed\r\n");
+#endif
+	}
+	XGpio_SetDataDirection(&gpioDpad, 1, 1);
+}
+
+/*****************************************************************************/
+/**
+*
 * Print message to OLED screen
 *
 * @param    char* printLines[]        : Message to print
@@ -127,13 +151,13 @@ void oled_print_screen(char* printLines[]) {
 *
 **/
 /*****************************************************************************/
-bool oled_confirmation_screen(XGpio* gpioBtn, char* printLines[]) {
+bool oled_confirmation_screen(char* printLines[]) {
 	enum DPAD dpadClick;
 
 	oled_print_screen(printLines);
 
 	while(1) {
-		dpadClick = XGpio_DiscreteRead(gpioBtn, 1);
+		dpadClick = XGpio_DiscreteRead(&gpioDpad, 1);
 		if(dpadClick == CENTER) {
 			return true;
 		} else if(dpadClick == LEFT) {
@@ -158,7 +182,7 @@ bool oled_confirmation_screen(XGpio* gpioBtn, char* printLines[]) {
 *
 **/
 /*****************************************************************************/
-int oled_selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
+int oled_selection_screen(char* menuLines[], int numOfLines) {
 	int i = 1; // 1st line is menu title
 	bool exitMenu = false;
 	enum DPAD dpadClick;
@@ -167,7 +191,7 @@ int oled_selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
 
 	while(!exitMenu)
 	{
-		dpadClick = XGpio_DiscreteRead(gpioBtn, 1);
+		dpadClick = XGpio_DiscreteRead(&gpioDpad, 1);
 		switch(dpadClick) {
 			case CENTER:
 				exitMenu = true;

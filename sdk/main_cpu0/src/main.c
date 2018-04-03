@@ -60,7 +60,6 @@ void getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 			0xd1, 0x2c, 0x1c, 0x5a, 0x80, 0x6c, 0x8c, 0x53, 0x84, 0xf2, 0x88, 0x99, 0x8b, 0xf5, 0x24, 0x8c,
 			0xeb, 0xf3, 0x03, 0xe5, 0x61, 0x25, 0x34, 0xbd, 0xe3, 0x29, 0x27, 0x26, 0x9f, 0x41, 0x96, 0x74,
 	};
-
 	uint8_t dipValue;
 	int i;
 
@@ -69,6 +68,15 @@ void getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 	for (i = 0; i < 16; i++) {
 		switchKey[i] = keys[dipValue+i*16];
     }
+}
+
+
+void main_initialization(void) {
+
+	init_platform();
+    oled_dpad_init();
+    gic_cancel_init();
+
 }
 
 
@@ -133,26 +141,28 @@ int main(void){
 
 	static FATFS fatfs; // File system format
 
-	static XGpio gpioDpad;
 	int choice = 0;
 
 /* START */
+#if UART_PRINT
 	print("##### Application Starts #####\n\n");
-	/* Initialization */
-	init_platform();
-	/* D-pad buttons */
-	if (XST_SUCCESS != XGpio_Initialize(&gpioDpad, XPAR_BTN_GPIO_AXI_DEVICE_ID)) {
-		printf("UH OH: BTN5 GPIO initialization failed\r\n");
-	}
-	XGpio_SetDataDirection(&gpioDpad, 1, 1);
+#endif
 	/* SD card */
 	char** fileList;
 	char** fileListMenu;
 	int numOfFiles;
-
-
-
     uint32_t fileSizeRead;
+	/* DMA */
+	static XAxiDma axiDma;
+
+
+
+
+    main_initialization();
+    dma_axi_init(&axiDma);
+
+
+
 
 
 	/* Switches and LEDs Setup*/
@@ -160,21 +170,18 @@ int main(void){
 	uint8_t switchKey[16];
 
 	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
+#if UART_PRINT
 		printf("UH OH: GPIO SWS initialization failed\r\n");
+#endif
 	};
-
-	// Set the direction of the bits in the GPIO.
-	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs).
-	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
+	// Set the direction of the bits in the GPIO
+	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs)
+	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs)
 	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
 
 
-	/* Gic */
-	gic_cancel_init();
 
-	/* DMA */
-	static XAxiDma axiDma;
-	dma_axi_init(&axiDma);
+
 
 	/* Inter-processor */
 	//Disable cache on OCM
@@ -187,34 +194,39 @@ int main(void){
 	print("CPU0: sending the SEV to wake up CPU1\n\r");
 	sev();
 
+
+
+
+
+
 welcome_screen:
 	/* Start Screen */
-	while(!oled_confirmation_screen(&gpioDpad, welcomeConfirmation)) {
+	while(!oled_confirmation_screen(welcomeConfirmation)) {
 	}
 
 	while(1) {
 		COMM_VAL = 0;
-		choice = oled_selection_screen(&gpioDpad, mainMenu, sizeof(mainMenu)/4);
+		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
 		sd_init(&fatfs);
 		cancelFlag = false;
 		switch (choice) {
 			case 1: // ECB
-				choice = oled_selection_screen(&gpioDpad, ecbMenu, sizeof(ecbMenu)/4);
+				choice = oled_selection_screen(ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
 						// Choice is the filename so do stuff
 						fileList = sd_list_all_files(&numOfFiles);
 						fileListMenu = oled_format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
 ecb_file_encrypt:
-						choice = oled_selection_screen(&gpioDpad, fileListMenu, numOfFiles+1);
+						choice = oled_selection_screen(fileListMenu, numOfFiles+1);
 						if (choice > 0) {
-							if(!oled_confirmation_screen(&gpioDpad, keyConfirmation)) {
+							if(!oled_confirmation_screen(keyConfirmation)) {
 								goto ecb_file_encrypt;
 							} else {
 								// Get key value
 								getKeyValue(&gpioSwitches, switchKey);
 							}
-							if(!oled_confirmation_screen(&gpioDpad, encryptConfirmation)) {
+							if(!oled_confirmation_screen(encryptConfirmation)) {
 								goto ecb_file_encrypt;
 							} else {
 								oled_print_screen(processingScreen);
@@ -242,7 +254,7 @@ ecb_file_encrypt:
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {
-										if(oled_confirmation_screen(&gpioDpad, cancelConfirmation)) {
+										if(oled_confirmation_screen(cancelConfirmation)) {
 											cancelFlag = false;
 											COMM_VAL = 0;
 											goto ecb_file_encrypt_end;
@@ -253,7 +265,7 @@ ecb_file_encrypt:
 								sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 
 								COMM_VAL = 0;
-								if(!oled_confirmation_screen(&gpioDpad, doneConfirmation)) {
+								if(!oled_confirmation_screen(doneConfirmation)) {
 									break;
 								}
 
@@ -328,12 +340,12 @@ ecb_file_decrypt:
 			case 3: // Ethernet
 				break;
 			case 4: // Reformat
-				if(!oled_confirmation_screen(&gpioDpad, reformatConfirmation)) {
+				if(!oled_confirmation_screen(reformatConfirmation)) {
 					break;
 				}
 				// check if it failed, print on screen
 				sd_format();
-				if(!oled_confirmation_screen(&gpioDpad, doneConfirmation)) {
+				if(!oled_confirmation_screen(doneConfirmation)) {
 					break;
 				}
 				break;
