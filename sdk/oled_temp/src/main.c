@@ -18,6 +18,7 @@
 #define sev() __asm__("sev")
 #define CPU1STARTADR 0xfffffff0
 #define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
+#define FILESIZE_VAL    (*(volatile unsigned long *)(0xFFFF0004))
 
 
 void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
@@ -247,13 +248,15 @@ ecb_file_encrypt:
 								goto ecb_file_encrypt;
 							} else {
 								print_screen(processingScreen);
-								COMM_VAL = 1;
 
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
+
+		                        FILESIZE_VAL = fileSizeRead;
+								COMM_VAL = 1;
 
 		                        // Padding need to fix...
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
