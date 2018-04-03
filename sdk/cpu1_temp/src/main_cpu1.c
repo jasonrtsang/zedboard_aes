@@ -53,110 +53,37 @@
 
 
 #include "xparameters.h"
-#include <stdio.h>
 #include "xil_io.h"
-#include "xil_mmu.h"
 #include "xil_cache.h"
 #include "xil_exception.h"
 #include "xscugic.h"
 #include "sleep.h"
 
-
-#define INTC		    XScuGic
-#define INTC_HANDLER	XScuGic_InterruptHandler
-#define INTC_DEVICE_ID	XPAR_PS7_SCUGIC_0_DEVICE_ID
-#define PL_IRQ_ID       XPS_IRQ_INT_ID
-
-#define IRQ_PCORE_GEN_BASE  XPAR_IRQ_GEN_0_BASEADDR
-
-
 #define COMM_VAL    (*(volatile unsigned long *)(0xFFFF0000))
-
-/**
- * This typedef contains configuration information for the device driver.
- */
-typedef struct {
-	u16 DeviceId;		/**< Unique ID of device */
-	u32 BaseAddress;	/**< Base address of the device */
-} Pl_Config;
-
-
-/**
- * The driver instance data. The user is required to allocate a
- * variable of this type.
- * A pointer to a variable of this type is then passed to the driver API
- * functions.
- */
-typedef struct {
-	Pl_Config Config;   /**< Hardware Configuration */
-	u32 IsReady;		/**< Device is initialized and ready */
-	u32 IsStarted;		/**< Device is running */
-} XPlIrq;
-
-
-extern u32 MMUTable;
 
 int main()
 {
 	XGpio gpioLeds;
-
-
-	 //Disable cache on OCM
-	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
-
-
-	print("CPU1: init_platform\n\r");
-
-
-	 while(1){
-
-
-		print("CPU1: Hello World CPU 1\n\r");
-		COMM_VAL = 0;
-		while(COMM_VAL == 0);
-
-	 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    init_platform();
-
 	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
 		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
 	};
 	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
-	while(1) {
-		XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
-		usleep(500000);
+
+	 //Disable cache on OCM
+	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+
+	COMM_VAL = 0;
+
+	while(1){
+
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0xFF);
 		usleep(500000);
+
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
+		usleep(500000);
+		while(COMM_VAL == 0);
+
 	}
 
-    cleanup_platform();
     return 0;
 }

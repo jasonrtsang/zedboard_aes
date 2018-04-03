@@ -13,18 +13,11 @@
 #include "xil_mmu.h"
 #include "xil_exception.h"
 #include "xpseudo_asm.h"
-#include "xscugic.h"
-
 
 
 #define sev() __asm__("sev")
 #define CPU1STARTADR 0xfffffff0
 #define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
-
-
-
-
-
 
 
 void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
@@ -141,16 +134,6 @@ int main(void){
 
 	static FATFS fatfs; // File system format
 
-
-
-//#define CPU1ADDR 0x20000000
-//#define CPU1ADDR_START 0XFFFFFFF0
-//#define sev() __asm__("sev")
-//
-//Xil_SetTlbAttributes(0xFFFF0000, 0X14DE2);
-
-
-
 /* START */
 	print("##### Application Starts #####\n\n");
 	/* Initialization */
@@ -210,81 +193,21 @@ int main(void){
 	static XAxiDma AxiDma;
 	XAxiDma_Init(&AxiDma, DMA_DEV_ID);
 
+	/* Inter-processor */
+	//Disable cache on OCM
+	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+	COMM_VAL = 0;
 
-//	Xil_Out32(CPU1ADDR_START, CPU1ADDR);
-//	dmb();
-//	sev();
+	Xil_Out32(CPU1STARTADR, 0x00200000);
+	dmb(); //waits until write has finished
+
+	print("CPU0: sending the SEV to wake up CPU1\n\r");
+	sev();
 
 welcome_screen:
 	/* Start Screen */
-
 	while(!confirmation_screen(&gpioBtn, welcomeConfirmation)) {
 	}
-
-
-
-
-
-
-
-
-
-
-
-	//Disable cache on OCM
-	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
-
-
-	COMM_VAL = 0;
-
-
-
-	print("CPU0: writing startaddress for cpu1\n\r");
-		Xil_Out32(CPU1STARTADR, 0x00200000);
-		dmb(); //waits until write has finished
-
-		print("CPU0: sending the SEV to wake up CPU1\n\r");
-		sev();
-
-	while(1){
-
-		print("CPU0: Hello World CPU 0\n\r");
-		COMM_VAL = 1;
-		while(COMM_VAL == 1);
-
-	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	while(1) {
 		init_sd(NULL);
@@ -324,6 +247,8 @@ ecb_file_encrypt:
 								goto ecb_file_encrypt;
 							} else {
 								print_screen(processingScreen);
+								COMM_VAL = 1;
+
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
@@ -349,9 +274,12 @@ ecb_file_encrypt:
 								}
 								/* Create output file */
 								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+
+								COMM_VAL = 0;
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}
+
 							}
 						}
 ecb_file_encrypt_end:
