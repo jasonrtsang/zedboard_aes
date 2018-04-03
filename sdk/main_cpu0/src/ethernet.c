@@ -58,6 +58,14 @@ static file_transfer_state_E send_file_state = STATE_INITIAL;
 static struct tcp_pcb *pcb;
 // END OF STATIC IN ECHO.C
 
+// Now let's have some stuff for the OLED
+char* enteringEthernetMode[] = {"    ENTERING    ",
+							    "    ETHERNET    ",
+							    "     MODE       ",
+							    "                "};
+
+char printbuf[16];
+
 
 void print_ip(char *msg, struct ip_addr *ip)
 {
@@ -77,6 +85,8 @@ void print_ip_settings(struct ip_addr *ip, struct ip_addr *mask, struct ip_addr 
 
 int ethernet_mode_run(void)
 {
+
+	oled_print_screen(enteringEthernetMode);
 	// Initialize ethernet interface
 	struct ip_addr ipaddr, netmask, gw;
 
@@ -135,6 +145,14 @@ int ethernet_mode_run(void)
 	// TODO, PRINT IP ADDRESS AND PORT HERE ON OLED
 	print_ip_settings(&ipaddr, &netmask, &gw);
 	
+	oled_clear();
+
+	sprintf(printbuf, "   Ethernet IP  ");
+	oled_print_line(printbuf, 0);
+	sprintf(printbuf, "%d.%d.%d.%d", ip4_addr1(&ipaddr), ip4_addr2(&ipaddr),ip4_addr3(&ipaddr), ip4_addr4(&ipaddr));
+	oled_print_line(printbuf, 1);
+
+
 	start_application();
 	
 	/* receive and process packets */
@@ -150,6 +168,10 @@ int ethernet_mode_run(void)
 		xemacif_input(echo_netif);
 		transfer_data();
 		// TODO - NEED TO ADD CANCEL BUTTON INTERRUPT HERE
+		if (cancelFlag)
+		{
+			break;
+		}
 	}
   
 	/* never reached */
@@ -195,6 +217,11 @@ int start_application()
 	tcp_accept(pcb, accept_callback);
 
 	xil_printf("TCP echo server started @ port %d\n\r", port);
+
+	sprintf(printbuf, "      Port      ");
+	oled_print_line(printbuf, 2);
+	sprintf(printbuf, "        %i", port);
+	oled_print_line(printbuf, 3);
 
 	return 0;
 }

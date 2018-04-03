@@ -269,3 +269,20 @@ char** oled_format_fileList(char* inputFiles[], int numOfFiles) {
 
   return outputFiles;
 }
+
+/*****************************************************************************/
+/**
+*
+* Print line to OLED screen
+*
+* @param    char* printLine[]         : Line to print
+*
+* @return   None
+*
+* @note     Expects line to be 16 char aligned
+*
+**/
+/*****************************************************************************/
+void oled_print_line(char* printLine, int index) {
+	print_message(printLine, index);
+}

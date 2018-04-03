@@ -62,6 +62,7 @@ void   oled_print_screen(char* printLines[]);
 bool   oled_confirmation_screen(char* printLines[]);
 int    oled_selection_screen(char* printLines[], int numOfLines);
 char** oled_format_fileList(char* inputFiles[], int numOfFiles);
+void oled_print_line(char* printLine, int index);
 
 /*********************************** SD *************************************/
 bool   sd_init(void);
