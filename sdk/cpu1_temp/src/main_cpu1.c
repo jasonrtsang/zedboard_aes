@@ -119,6 +119,8 @@ int main()
 		print_message(printBuf, 3);
 
 
+		// Better loop this so when a cancel occurs it will check COMM_VAL right away
+
 		// Loop 8 LEDS - 1 seconds loop
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b10000000);
 		usleep(LED_DELAY);

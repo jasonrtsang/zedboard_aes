@@ -193,6 +193,7 @@ welcome_screen:
 	}
 
 	while(1) {
+		COMM_VAL = 0;
 		choice = oled_selection_screen(&gpioDpad, mainMenu, sizeof(mainMenu)/4);
 		sd_init(&fatfs);
 		cancelFlag = false;
