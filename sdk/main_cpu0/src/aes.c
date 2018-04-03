@@ -17,33 +17,6 @@ XAxiDma axiDma;
 /*****************************************************************************/
 /**
 *
-* Initialize DMA streaming and toggle switches for key
-*
-* @param    None
-*
-* @return   None
-*
-* @note     None
-*
-**/
-/*****************************************************************************/
-void aes_init(void) {
-	dma_init(&axiDma);
-
-	if(XST_SUCCESS != XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID)) {
-#if UART_PRINT
-		printf("UH OH: GPIO SWS initialization failed\r\n");
-#endif
-	};
-	// Set the direction of the bits in the GPIO
-	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs)
-	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs)
-	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
-}
-
-/*****************************************************************************/
-/**
-*
 * Setting AES 128-bit key and encryption or decryption mode to IP block
 *
 * @param    const uint8_t* key        : 128-bit cipher key
@@ -143,12 +116,38 @@ void _getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 /*****************************************************************************/
 /**
 *
-* Setting AES 128-bit key and encryption or decryption mode to IP block
+* Initialize DMA streaming and toggle switches for key
 *
-* @param    const uint8_t* key        : 128-bit cipher key
-* 			enum AESMODE mode         : Cipher mode
+* @param    None
 *
-* @return   true if successful, false otherwise
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+void aes_init(void) {
+	dma_init(&axiDma);
+
+	if(XST_SUCCESS != XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID)) {
+#if UART_PRINT
+		printf("UH OH: GPIO SWS initialization failed\r\n");
+#endif
+	};
+	// Set the direction of the bits in the GPIO
+	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs)
+	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs)
+	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
+}
+
+/*****************************************************************************/
+/**
+*
+* Main processing system for AES cipher for SD card
+*
+* @param    enum AESMODE mode         : Cipher mode
+*
+* @return   enum STATUS
 *
 * @note     None
 *
@@ -156,47 +155,53 @@ void _getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 /*****************************************************************************/
 enum STATUS aes_sd_process_run(enum AESMODE mode)
 {
-	char* keyConfirmation[] = {"  Please enter  ",
-							   "  AES key using ",
-							   "  the switches  ",
-							   "Click < to abort"};
+	char* keyConfirmation[] =     {"  Please enter  ",
+							       " AES key using  ",
+							       "  the switches  ",
+							       "Click < to abort"};
 
 	char* encryptConfirmation[] = {" File will now  ",
-							       " be encrypted   ",
+							       "  be encrypted  ",
 							       " Are you sure?  ",
 							       "Click < to abort"};
 
 	char* decryptConfirmation[] = {" File will now  ",
-							       " be decrypted   ",
+							       "  be decrypted  ",
 							       " Are you sure?  ",
 							       "Click < to abort"};
 
-	char* processingScreen[] = {"                ",
-							    "   Processing   ",
-							    "      ....      ",
-							    "                "};
+	char* processingScreen[] =    {"                ",
+							       "   Processing   ",
+							       "      ....      ",
+							       "                "};
 
-
-	/* SD card */
-	char** fileList;
-	char** fileListMenu;
+	// SD variables
+	char **fileList;
+	char **fileListMenu;
 	int numOfFiles;
     uint32_t fileSizeRead;
 
+    // Key variables
     uint8_t switchKey[16];
 
-	u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
-	u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
-	int i, choice;
+    // DMA variables
+    int i;
+    uint32_t *outputBuf = (u32*)RX_BUFFER_BASE;
+    uint32_t *inputBuf = (u32*)TX_BUFFER_BASE;
 
-	// Choice is the filename so do stuff
+	int choice;
+
+	// Get file list from SD and create menu format
 	fileList = sd_list_all_files(&numOfFiles);
 	fileListMenu = oled_format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
 
+	// File selection screen
 aes_sd_process_run_files:
 	choice = oled_selection_screen(fileListMenu, numOfFiles+1);
 	if(choice > 0) {
+
 aes_sd_process_run_key:
+		// Key selection screen
 		if(!oled_confirmation_screen(keyConfirmation)) {
 			goto aes_sd_process_run_files;
 		} else {
@@ -204,6 +209,7 @@ aes_sd_process_run_key:
 			_getKeyValue(&gpioSwitches, switchKey);
 		}
 
+		// Confirmation screen
 		switch(mode) {
 			case ENCRYPTION:
 				if(!oled_confirmation_screen(encryptConfirmation)) {
@@ -220,32 +226,33 @@ aes_sd_process_run_key:
 				break;
 		};
 
-
+		// Temporary processing screen before CPU1 is kicked off
 		oled_print_screen(processingScreen);
 
-		// Read in file from selection screen
+		// Read in file to transfer buffer
 		fileSizeRead = 0;
 		if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 			return FAILED;
 		}
 
-		// Start CPU processing screen
+		// Start CPU1 processing screen
 		FILESIZE_VAL = fileSizeRead;
 		COMM_VAL = 1;
 
 		// Padding need to fix...
 		int length = 16 * ((fileSizeRead + 15) / 16);
 
-
-		// Init registers
+		// Init registers in AES_PROCESS IP
 		_aes_process_init(switchKey, mode);
 
-
+		// Loop till entire file is done
 		for (i = 0; i < length; i += AES_BLOCKLEN)
 		{
-			dma_aes_process_transfer(&axiDma, inputBuf_ptr, outputBuf_ptr);
-			inputBuf_ptr += AES_BLOCKLEN/4;
-			outputBuf_ptr += AES_BLOCKLEN/4;
+			// Stream state to AES_PROCESS IP
+			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
+			inputBuf += AES_BLOCKLEN/4;
+			outputBuf += AES_BLOCKLEN/4;
+			// Cancel interrupt flag
 			if (cancelFlag) {
 				COMM_VAL = 0;
 				free(fileList);
@@ -254,17 +261,16 @@ aes_sd_process_run_key:
 			}
 		}
 
-
-
-		/* Create output file */
+		// Create output file from return buffer
 		sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
 
+		// Stop CPU1 processing screen
 		COMM_VAL = 0;
 		free(fileList);
 		free(fileListMenu);
 		return DONE;
-
 	} else {
+		// Back one menu if not file selection
 		return BACK;
 	}
 }

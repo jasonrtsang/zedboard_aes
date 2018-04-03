@@ -8,83 +8,53 @@
 
 #include "common.h"
 
-
-
-#include <stdio.h>
-#include "xil_io.h"
-#include "xil_mmu.h"
-#include "xil_exception.h"
-#include "xpseudo_asm.h"
-
-
+/******************************* Definitions *********************************/
 #define sev() __asm__("sev")
-#define CPU1STARTADR 0xfffffff0
-#define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
-#define FILESIZE_VAL    (*(volatile unsigned long *)(0xFFFF0004))
+/*****************************************************************************/
 
-#define AES_BLOCKLEN 16 //Block length in bytes AES is 128b block only
+/*****************************************************************************/
+/**
+*
+* Initialize all drivers
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+void _main_initialization(void) {
 
+	init_platform(); // UART, Caches
+    oled_init(); // DPAD GPIO
+    gic_init(); // GIC, BTN9 GPIO
+    aes_init(); // DMA, Switches GPIO
 
-void getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
-	// Fixed key lookup table, DO NOT MODIFY
-	const uint8_t keys[] = {
-			0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7,
-			0x89, 0xb3, 0x6e, 0xae, 0x31, 0xa4, 0x73, 0x7a, 0xda, 0x5c, 0x4a, 0x41, 0x63, 0x33, 0x11, 0xbd,
-			0xf3, 0x52, 0x2a, 0x20, 0x1a, 0xfd, 0x97, 0x3e, 0x13, 0x7a, 0xec, 0x26, 0x3f, 0x8d, 0xeb, 0xdf,
-			0x18, 0x6e, 0xb8, 0x08, 0x46, 0x4a, 0xd0, 0x15, 0xbf, 0x81, 0xb7, 0xa2, 0x3b, 0x78, 0xc2, 0x44,
-			0xdc, 0x4c, 0x81, 0x75, 0x22, 0x74, 0x07, 0xae, 0x75, 0x8c, 0x65, 0xd0, 0x89, 0x25, 0x72, 0x67,
-			0xa3, 0x02, 0x2d, 0xdd, 0xdf, 0x45, 0x0d, 0x3c, 0xa3, 0x44, 0x49, 0x4a, 0xe4, 0x09, 0x15, 0x2c,
-			0x36, 0xe4, 0xb2, 0x70, 0xcd, 0x70, 0xc2, 0x06, 0x8c, 0xf2, 0xf9, 0x95, 0x83, 0x0e, 0x92, 0xb3,
-			0x4d, 0xe1, 0xab, 0x84, 0x86, 0x2e, 0x41, 0x1a, 0x31, 0x83, 0xf6, 0xbe, 0x6e, 0x5d, 0x25, 0xa6,
-			0x4d, 0x43, 0xf6, 0x9b, 0x72, 0xe7, 0xb0, 0xeb, 0x7c, 0xd4, 0xbb, 0x5a, 0xa3, 0xd1, 0x3e, 0xac,
-			0xa9, 0x30, 0x9b, 0x17, 0x1b, 0x53, 0xf6, 0x78, 0x41, 0xf8, 0xef, 0x79, 0x78, 0xe5, 0x5b, 0x0b,
-			0x06, 0x79, 0x72, 0x9a, 0x0d, 0xa1, 0x45, 0xa1, 0xda, 0x79, 0x17, 0x33, 0x78, 0x33, 0xbf, 0x84,
-			0xfe, 0xa8, 0x1a, 0x4b, 0x7c, 0xb0, 0x79, 0xa0, 0x64, 0x0f, 0xf3, 0x3d, 0xe6, 0x72, 0xf3, 0x1d,
-			0x89, 0x30, 0xa1, 0x0e, 0x41, 0xb6, 0xd8, 0x6d, 0x95, 0xfd, 0xd7, 0x79, 0xf9, 0xfb, 0xc9, 0x39,
-			0xd1, 0x9f, 0x1c, 0x99, 0x88, 0x3a, 0x1a, 0xcf, 0xc1, 0xbf, 0x93, 0x01, 0x26, 0xe2, 0x40, 0x17,
-			0xc9, 0x10, 0x64, 0x5d, 0x1c, 0xc8, 0x39, 0xec, 0x9d, 0x9e, 0x1e, 0xff, 0x4a, 0xe1, 0xe8, 0xc7,
-			0x16, 0xbe, 0xc2, 0xc3, 0x77, 0x15, 0x36, 0xc2, 0x8b, 0x29, 0xea, 0x73, 0x5b, 0x58, 0x25, 0x20,
-			0xd7, 0xac, 0x69, 0x1d, 0xbb, 0x86, 0xb3, 0x47, 0xf8, 0xf1, 0x58, 0x12, 0xd1, 0x57, 0xec, 0x83,
-			0xbc, 0x8a, 0x7e, 0xe9, 0x69, 0xf6, 0x2c, 0x86, 0x13, 0x0e, 0x13, 0x1c, 0xf4, 0x0d, 0xe6, 0x08,
-			0xdd, 0xc9, 0xf7, 0xc0, 0x3c, 0xab, 0x0e, 0x11, 0x7c, 0x57, 0x8e, 0x36, 0x4c, 0x57, 0xbc, 0x1f,
-			0x7c, 0xfe, 0x0a, 0x61, 0x57, 0x53, 0x83, 0x88, 0x7c, 0x70, 0x71, 0xe8, 0x5b, 0x5b, 0x0a, 0x67,
-			0xfb, 0x47, 0xcf, 0x9a, 0x7d, 0x0e, 0x9c, 0x94, 0x52, 0x54, 0xaa, 0x3a, 0xf6, 0x82, 0xd2, 0xa8,
-			0x44, 0xfa, 0x2d, 0x2d, 0x14, 0x56, 0x06, 0xcf, 0x21, 0x47, 0x75, 0xb2, 0x7c, 0x0a, 0xd7, 0x2c,
-			0x96, 0xe4, 0x38, 0xec, 0xba, 0xcc, 0x69, 0x79, 0x80, 0xc3, 0x52, 0xab, 0x5c, 0x9e, 0x0f, 0x09,
-			0xd2, 0x50, 0x4f, 0xe5, 0x86, 0xf1, 0xe9, 0xec, 0x39, 0x4b, 0x61, 0x93, 0xb6, 0x6e, 0x62, 0xc0,
-			0x09, 0x49, 0x49, 0x0b, 0x53, 0xfb, 0x11, 0xb2, 0xe7, 0xf9, 0x0b, 0xe5, 0xff, 0xfb, 0x9c, 0x28,
-			0x2f, 0xef, 0x79, 0x24, 0x38, 0x0f, 0xc7, 0x75, 0x92, 0x01, 0xf2, 0xa8, 0x14, 0xab, 0x4b, 0xd4,
-			0xc2, 0x38, 0xed, 0xfa, 0x29, 0x27, 0xb9, 0xa5, 0x27, 0x3d, 0x14, 0x1a, 0xe5, 0xb7, 0x46, 0x84,
-			0xf7, 0x39, 0x04, 0x23, 0x93, 0x19, 0x17, 0x47, 0x28, 0xea, 0x4c, 0x06, 0x35, 0xaf, 0x91, 0x0b,
-			0xc7, 0x65, 0x89, 0xf1, 0xf0, 0x87, 0xc7, 0xfe, 0x71, 0x2f, 0x75, 0x99, 0xcc, 0x9f, 0x9b, 0x4a,
-			0xd1, 0x2c, 0x1c, 0x5a, 0x80, 0x6c, 0x8c, 0x53, 0x84, 0xf2, 0x88, 0x99, 0x8b, 0xf5, 0x24, 0x8c,
-			0xeb, 0xf3, 0x03, 0xe5, 0x61, 0x25, 0x34, 0xbd, 0xe3, 0x29, 0x27, 0x26, 0x9f, 0x41, 0x96, 0x74,
-	};
-	uint8_t dipValue;
-	int i;
-
-	// Convert dipValue to switchKey from table above
-	dipValue = XGpio_DiscreteRead(gpioSwitches, 1);
-	for (i = 0; i < 16; i++) {
-		switchKey[i] = keys[dipValue+i*16];
-    }
+	// Inter-processor setup for CPU1
+	COMM_VAL = 0;
+	// Disable cache on OCM
+	Xil_SetTlbAttributes(0xFFFF0000, 0x14de2); // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+	Xil_Out32(0xFFFFFFF0, 0x00200000); // 0xFFFFFFF0 = CPU1STARTADDR
+	dmb(); // Waits until write has finished
+	sev(); // Send SEV to wake up CPU1
 }
 
-
-void main_initialization(void) {
-
-	init_platform();
-    oled_init();
-    gic_init();
-    aes_init();
-
-}
-
-
+/*****************************************************************************/
+/**
+*
+* Entrance to CPU0 Application
+*
+* @param    None
+*
+* @return   0 when exit
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
 int main(void){
-
-	const uint8_t iv_key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-
 	/* ENSURE LENGTHS OF 16 PER LINE */
 	char* welcomeConfirmation[] = {"                ",
 								   " AES ENCRYPTION ",
@@ -95,7 +65,7 @@ int main(void){
 						"  CBC mode      ",
 						"  Ethernet mode ",
 						"  Reformat      ",
-						"  Exit          "};
+						"  Quit          "};
 
 	char* reformatConfirmation[] = {"Erase/ format SD",
 							        "card to FATFS...",
@@ -106,24 +76,10 @@ int main(void){
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
 
+	const uint8_t iv_key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 	char* cbcMenu[] = {"CBC action:     ",
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
-
-	char* keyConfirmation[] = {"  Please enter  ",
-							   "  AES key using ",
-							   "  the switches  ",
-							   "Click < to abort"};
-
-	char* encryptConfirmation[] = {" File will now  ",
-							       " be encrypted   ",
-							       " Are you sure?  ",
-							       "Click < to abort"};
-
-	char* decryptConfirmation[] = {" File will now  ",
-							       " be decrypted   ",
-							       " Are you sure?  ",
-							       "Click < to abort"};
 
 	char* doneConfirmation[] = {"                ",
 							    "      Done!     ",
@@ -140,166 +96,61 @@ int main(void){
 							      "    wrong...    ",
 							      "                "};
 
-	char* processingScreen[] = {"                ",
-							    "   Processing   ",
-							    "      ....      ",
-							    "                "};
+	int choice;
+	enum STATUS aesStatus;
 
-	static FATFS fatfs; // File system format
-
-	int choice = 0;
-
-/* START */
 #if UART_PRINT
 	print("##### Application Starts #####\n\n");
 #endif
-	/* SD card */
-	char** fileList;
-	char** fileListMenu;
-	int numOfFiles;
-    uint32_t fileSizeRead;
-	/* DMA */
-	static XAxiDma axiDma;
 
+    _main_initialization();
 
-
-
-    main_initialization();
-    dma_init(&axiDma);
-
-
-
-
-
-	/* Switches and LEDs Setup*/
-	XGpio gpioSwitches;
-	uint8_t switchKey[16];
-
-	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
-#if UART_PRINT
-		printf("UH OH: GPIO SWS initialization failed\r\n");
-#endif
-	};
-	// Set the direction of the bits in the GPIO
-	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs)
-	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs)
-	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
-
-
-
-
-
-	/* Inter-processor */
-	//Disable cache on OCM
-	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
-	COMM_VAL = 0;
-
-	Xil_Out32(CPU1STARTADR, 0x00200000);
-	dmb(); //waits until write has finished
-
-	print("CPU0: sending the SEV to wake up CPU1\n\r");
-	sev();
-
-
-	enum STATUS aesStatus;
-
-
-
-welcome_screen:
-	/* Start Screen */
+	// Start Screen
 	while(!oled_confirmation_screen(welcomeConfirmation)) {
 	}
 
+	// Main Menu loop
 	while(1) {
+		// Reset flags
 		COMM_VAL = 0;
-		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
-		sd_init(&fatfs);
 		cancelFlag = false;
+		// Main Menu selection
+		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
+		// Refresh SD mount
+		sd_init();
 		switch (choice) {
 			case 1: // ECB
-ecb_file_encrypt:
+ecb_menu:
+				// ECB encryption or decryption
 				choice = oled_selection_screen(ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
 						aesStatus = aes_sd_process_run(ENCRYPTION);
-						switch(aesStatus) {
-							case DONE:
-								while(!oled_confirmation_screen(doneConfirmation));
-								break;
-							case FAILED:
-								while(!oled_confirmation_screen(failedConfirmation));
-								break;
-							case BACK:
-								goto ecb_file_encrypt;
-								break;
-							case CANCELLED:
-								cancelFlag = false;
-								while(!oled_confirmation_screen(cancelConfirmation));
-								break;
-							default:
-								return false; // Shouldn't ever reach here
-								break;
-						};
 						break;
 					case 2: // Decrypt
-#if 0
-						// Choice is the filename so do stuff
-						fileList = sd_list_all_files(&numOfFiles);
-						fileListMenu = format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
-ecb_file_decrypt:
-						choice = selection_screen(&gpioDpad, fileListMenu, numOfFiles+1);
-						if (choice > 0) {
-							if(!confirmation_screen(&gpioDpad, keyConfirmation)) {
-								goto ecb_file_decrypt;
-							} else {
-								// Get key value
-								getKeyValue(&gpioSwitches, switchKey);
-							}
-							if(!confirmation_screen(&gpioDpad, encryptConfirmation)) {
-								goto ecb_file_decrypt;
-							} else {
-								print_screen(processingScreen);
-
-		                        /* Read the current specified file */
-		                        fileSizeRead = 0;
-		                        if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
-		                            break;
-		                        }
-
-		                        // Padding need to fix...
-		                        int length = 16 * ((fileSizeRead + 15) / 16);
-
-		                        // Init registers
-		                        AES_Process_init(switchKey, DECRYPTION);
-
-								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
-								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
-								for (int i = 0; i < length; i += AES_BLOCKLEN)
-								{
-									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
-									inputBuf_ptr += AES_BLOCKLEN/4;
-									outputBuf_ptr += AES_BLOCKLEN/4;
-								    if (cancelFlag) {
-										if(confirmation_screen(&gpioDpad, cancelConfirmation)) {
-											cancelFlag = false;
-											goto ecb_file_encrypt_end;
-										}
-								    }
-								}
-
-								sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
-								if(!confirmation_screen(&gpioDpad, doneConfirmation)) {
-									break;
-								}
-							}
-						}
-						free(fileList);
-						free(fileListMenu);
-#endif
+						aesStatus = aes_sd_process_run(DECRYPTION);
 						break;
 					default:
 						break;
 				}
+				switch(aesStatus) {
+					case DONE:
+						while(!oled_confirmation_screen(doneConfirmation));
+						break;
+					case FAILED:
+						while(!oled_confirmation_screen(failedConfirmation));
+						break;
+					case BACK:
+						goto ecb_menu;
+						break;
+					case CANCELLED:
+						cancelFlag = false;
+						while(!oled_confirmation_screen(cancelConfirmation));
+						break;
+					default:
+						return false; // Shouldn't ever reach here
+						break;
+				};
 				break;
 			case 2: // CBC
 				break;
@@ -316,10 +167,9 @@ ecb_file_decrypt:
 				}
 				break;
 			case 5: // Exit
-				goto welcome_screen;
+				return 0;
 			default:
 				break;
 		}
 	}
-	return 0;
 }

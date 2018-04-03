@@ -9,6 +9,8 @@
 
 /******************************* Definitions *********************************/
 const TCHAR *Path = "0:/"; // Base directory of SD
+
+FATFS fatfs;
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -24,10 +26,10 @@ const TCHAR *Path = "0:/"; // Base directory of SD
 *
 **/
 /*****************************************************************************/
-bool sd_init(FATFS* fatfs)
+bool sd_init(void)
 {
     // Register SD volume, initialize device
-    if(f_mount(fatfs, Path, 0) != FR_OK) {
+    if(f_mount(&fatfs, Path, 0) != FR_OK) {
 #if UART_PRINT
         printf("UH OH: Something went wrong with mounting the SD card...\r\n");
 #endif
