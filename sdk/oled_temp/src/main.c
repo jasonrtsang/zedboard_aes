@@ -6,6 +6,27 @@
  */
 #include "common.h"
 
+
+
+#include <stdio.h>
+#include "xil_io.h"
+#include "xil_mmu.h"
+#include "xil_exception.h"
+#include "xpseudo_asm.h"
+#include "xscugic.h"
+
+
+
+#define sev() __asm__("sev")
+#define CPU1STARTADR 0xfffffff0
+#define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
+
+
+
+
+
+
+
 void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
 	/* Fixed keys and initialization vector (cbc) */
 	const uint8_t keys[] = {
@@ -120,6 +141,16 @@ int main(void){
 
 	static FATFS fatfs; // File system format
 
+
+
+//#define CPU1ADDR 0x20000000
+//#define CPU1ADDR_START 0XFFFFFFF0
+//#define sev() __asm__("sev")
+//
+//Xil_SetTlbAttributes(0xFFFF0000, 0X14DE2);
+
+
+
 /* START */
 	print("##### Application Starts #####\n\n");
 	/* Initialization */
@@ -147,21 +178,21 @@ int main(void){
 
 	/* Switches and LEDs Setup*/
 	XGpio gpioSwitches;
-	XGpio gpioLeds;
+//	XGpio gpioLeds;
 	uint8_t switchKey[16];
 
 	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
 		printf("UH OH: GPIO SWS initialization failed\r\n");
 	};
-	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
-		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
-	};
+//	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
+//		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
+//	};
 
 	// Set the direction of the bits in the GPIO.
 	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs).
 	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
 	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
-	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
+//	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
 	/* MIO51 BTN9 Setup*/
 	XGpioPs_Config *GPIOConfigPtr;
@@ -176,14 +207,84 @@ int main(void){
 	SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
 	/* DMA */
-	XAxiDma AxiDma;
+	static XAxiDma AxiDma;
 	XAxiDma_Init(&AxiDma, DMA_DEV_ID);
+
+
+//	Xil_Out32(CPU1ADDR_START, CPU1ADDR);
+//	dmb();
+//	sev();
 
 welcome_screen:
 	/* Start Screen */
 
 	while(!confirmation_screen(&gpioBtn, welcomeConfirmation)) {
 	}
+
+
+
+
+
+
+
+
+
+
+
+	//Disable cache on OCM
+	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+
+
+	COMM_VAL = 0;
+
+
+
+	print("CPU0: writing startaddress for cpu1\n\r");
+		Xil_Out32(CPU1STARTADR, 0x00200000);
+		dmb(); //waits until write has finished
+
+		print("CPU0: sending the SEV to wake up CPU1\n\r");
+		sev();
+
+	while(1){
+
+		print("CPU0: Hello World CPU 0\n\r");
+		COMM_VAL = 1;
+		while(COMM_VAL == 1);
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	while(1) {
 		init_sd(NULL);
