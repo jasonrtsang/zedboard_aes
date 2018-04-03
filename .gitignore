@@ -27,6 +27,8 @@ vivado_pid*
 # BSP : only keep .cproject, .project, .sdkproject, .system.mss and Makefile
 # i.e. the ps7_cortexa9_0 lib files are regenerated automatically
 /sdk/standalone_bsp/ps7_cortexa9_0/
+/sdk/standalone_bsp_cpu0/ps7_cortexa9_0/
+/sdk/standalone_bsp_cpu1/ps7_cortexa9_1/
 
 # Application : keep everything, except ignore output file patterns
 /sdk/**/*.o
