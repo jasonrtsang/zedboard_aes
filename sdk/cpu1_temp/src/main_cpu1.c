@@ -88,33 +88,38 @@ int main()
 	int counter = 0;
 	bool firstLoop = false;
 	int secondsLeft = 0;
+	int percentageComplete = 0;
+	int percentageIncrements = 0;
 
 	char printBuf[16];
 
-	char* processingScreen[] = {"   Time Left    ",
+	char* processingScreen[] = {"  Seconds Left  ",
 							    "                ",
-							    "                ",
-							    "   second(s)    "};
+							    "  % Completed   ",
+							    "                "};
 
 	while(1){
 
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000000);
 
 		while(COMM_VAL == 0){
-			XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000000);
 			firstLoop = true;
 		}
 		if(firstLoop) {
-			secondsLeft = FILESIZE_VAL/0x200000; // 2mb = 1 sec
+			percentageComplete = 0;
+			secondsLeft = FILESIZE_VAL/0x280000; // 10mb A0 0000 takes 4 seconds = 20 0000 per second
+			percentageIncrements = 100 / secondsLeft;
 			firstLoop = false;
 		}
 
 		print_screen(processingScreen);
-		snprintf(printBuf, sizeof(printBuf), "     ~%i", secondsLeft);
-		print_message(printBuf, 2);
+		snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
+		print_message(printBuf, 1);
+		snprintf(printBuf, sizeof(printBuf), "      ~ %i", percentageComplete);
+		print_message(printBuf, 3);
 
-		// Loop 8 LEDS - 1 seconds loop -- takes 1/2sec per mb
-		// A0 0000 = 10mb, A 0000 = 1mb
+
+		// Loop 8 LEDS - 1 seconds loop
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b10000000);
 		usleep(LED_DELAY);
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b01000000);
@@ -132,6 +137,8 @@ int main()
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000001);
 		usleep(LED_DELAY);
 		secondsLeft--;
+		percentageComplete += percentageIncrements;
+
 
 	}
 
