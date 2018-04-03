@@ -70,69 +70,6 @@ extern volatile int TcpSlowTmrFlag;
 static struct netif server_netif;
 struct netif *echo_netif;
 
-// Now Daniel's own special sauce
-extern volatile int return_data_available;
-
-//typedef enum
-//{
-//		STATE_INITIAL = 0,
-//		STATE_TRANSFER_NOT_COMPLETE,
-//		STATE_TRANSFER_COMPLETE,
-//}file_transfer_state_E;
-
-//static file_transfer_state_E send_file_state = STATE_INITIAL;
-//static u32 size_of_byte_stream = 0;
-//static u32 bytes_to_be_sent_remaining = 0;
-//u8* last_address_sent;
-//
-//// Contains the buffer to be sent, the first 32 bits are the size of the rest of the buffer
-//void send_data_over_ethernet(u8* buf_addr)
-//{
-//	xil_printf("I'm sending some data now look at me go!");
-//	switch (send_file_state)
-//	{
-//		case STATE_INITIAL:
-//			// Need to extract size of file to be transferred
-//			memcpy(&size_of_byte_stream, buf_addr, sizeof(size_of_byte_stream));
-//			if (size_of_byte_stream > TCP_SND_BUF)
-//			{
-//				//Great we can fit everything in one send!
-////				err = tcp_write(tpcb, p->payload, p->len, 1);
-//				tcp_write(tpcb, (buf_addr + sizeof(size_of_byte_stream)), size_of_byte_stream, 1);
-//				send_file_state = STATE_TRANSFER_COMPLETE;
-//			}
-//			else
-//			{
-//				// Looks like we'll need to split up the data in multiple packets
-//				tcp_write(tpcb, (buf_addr + sizeof(size_of_byte_stream)), TCP_SND_BUF, 1);
-//				bytes_to_be_sent_remaining = size_of_byte_stream - TCP_SND_BUF;
-//				last_address_sent = buf_addr + TCP_SND_BUF;
-//				send_file_state = STATE_TRANSFER_NOT_COMPLETE;
-//			}
-//			break;
-//		case STATE_TRANSFER_NOT_COMPLETE:
-//			if (bytes_to_be_sent_remaining <= TCP_SND_BUF)
-//			{
-//				// Cool, we can send the remaining bytes
-//				tcp_write(tpcb, last_address_sent, bytes_to_be_sent_remaining, 1);
-//				send_file_state = STATE_TRANSFER_COMPLETE;
-//			}
-//			else
-//			{
-//				// We still have work to do, let's send more data
-//				tcp_write(tpcb, last_address_sent, TCP_SND_BUF, 1);
-//				last_address_sent += TCP_SND_BUF;
-//				bytes_to_be_sent_remaining -= TCP_SND_BUF;
-//			}
-//			break;
-//		case STATE_TRANSFER_COMPLETE:
-//			return_data_available = 0;
-//			send_file_state = STATE_INITIAL;
-//			break;
-//		default:
-//			break;
-//	}
-//}
 
 void
 print_ip(char *msg, struct ip_addr *ip) 
@@ -252,11 +189,6 @@ int main()
 		if (TcpFastTmrFlag) {
 			tcp_fasttmr();
 			TcpFastTmrFlag = 0;
-			if (return_data_available == 1)
-			{
-//				xil_printf("Dope we should return some data\n\r");
-				send_data_over_ethernet();
-			}
 		}
 		if (TcpSlowTmrFlag) {
 			tcp_slowtmr();

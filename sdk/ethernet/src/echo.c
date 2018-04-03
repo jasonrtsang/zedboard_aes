@@ -45,7 +45,7 @@
 #define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x06500000) // buffer ~100MB
 #define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x0C900000) // buffer ~100MB
 
-volatile int return_data_available = 0;
+void send_data_over_ethernet(void);
 
 int transfer_data() {
 	return 0;
@@ -95,10 +95,9 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 	switch(recv_file_state)
 	{
 		case STATE_INITIAL:
-			// Clear the buffer just for debug purposes
-//			memset(inputBuf_ptr, 0xAD, 100);
 			// Grab the information from the header (how big will the file be?)
 			memcpy(&size_of_byte_stream, p->payload, sizeof(size_of_byte_stream));
+
 			if (size_of_byte_stream > p->len - sizeof(size_of_byte_stream))
 			{
 				// We know to expect more packets, so get ready to come to this state machine again
@@ -140,30 +139,17 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 
 	if (recv_file_state == STATE_TRANSFER_COMPLETE)
 	{
-		xil_printf("Yay we've got the data, it reads:\n %s\n", inputBuf_ptr);
+		xil_printf("Data transfer complete\n\r");
 		recv_file_state = STATE_INITIAL;
+		send_file_state = STATE_INITIAL;
 		// now do stuff here like encrypt the data
 		// for now we'll just copy the data to our RX_Buffer and send that back
+		// THIS is where the encryption/decryption should occur
 		memcpy(outputBuf_ptr, &size_of_byte_stream, sizeof(size_of_byte_stream)); // Add the byte header
 		memcpy(outputBuf_ptr + sizeof(size_of_byte_stream), inputBuf_ptr, size_of_byte_stream);
-//		err = tcp_write(tpcb, outputBuf_ptr, size_of_byte_stream + sizeof(size_of_byte_stream), 0); // We are NOT copying the buffer to the tcp layer
-//		if (err != ERR_OK)
-//		{
-//			xil_printf("There is an error trying to send data over TCP\n\r");
-//		}
-		return_data_available = 1;
+		// Kick off the send data
+		send_data_over_ethernet();
 	}
-
-
-	// Now we need to decode the header
-
-
-	/* echo back the payload */
-	/* in this case, we assume that the payload is < TCP_SND_BUF */
-//	if (tcp_sndbuf(tpcb) > p->len) {
-//		err = tcp_write(tpcb, p->payload, p->len, 1);
-//	} else
-//		xil_printf("no space in tcp_sndbuf\n\r");
 
 	/* free the received pbuf */
 	pbuf_free(p);
@@ -171,13 +157,39 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 	return ERR_OK;
 }
 
+
+err_t sent_callback(void *arg, struct tcp_pcb *tpcb, u16_t len)
+{
+  LWIP_UNUSED_ARG(len);
+
+  // Nice, let's use this to send the next data if needed
+  if (send_file_state == STATE_TRANSFER_COMPLETE)
+  {
+	  // Reset file send state machine
+	  // Reset both sent and receive
+	  send_file_state = STATE_INITIAL;
+	  recv_file_state = STATE_INITIAL;
+  }
+  else
+  {
+	  // More data still needs to be sent
+	  send_data_over_ethernet();
+  }
+  return ERR_OK;
+}
+
+
 err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err)
 {
 	static int connection = 1;
 
 	/* set the receive callback for this connection */
 	tcp_recv(newpcb, recv_callback);
-	// Let's hold onto this connection
+
+	/* set the sent callback for this connection */
+	tcp_sent(newpcb, sent_callback);
+
+	// Let's hold onto this connection for sending data later
 	pcb = newpcb;
 
 	/* just use an integer number indicating the connection id as the
@@ -196,67 +208,89 @@ void send_data_over_ethernet(void)
 {
 	u8 *outputBuf_ptr = (u8*)RX_BUFFER_BASE;
 	err_t err = ERR_OK;
-	struct tcp_pcb *amazing = pcb; // Yeah this doesn't have the proper PCB in it, not the way to do it...clearly
 
 	switch (send_file_state)
 	{
 		case STATE_INITIAL:
 			// Need to extract size of file to be transferred
-			xil_printf("I'm sending some data now look at me go!\n");
+			xil_printf("\nSending data to host!\n");
 			memcpy(&size_of_byte_stream, outputBuf_ptr, sizeof(size_of_byte_stream));
 			if (size_of_byte_stream < TCP_SND_BUF)
 			{
 				//Great we can fit everything in one send!
-				err = tcp_write(pcb, (outputBuf_ptr + sizeof(size_of_byte_stream)), size_of_byte_stream, 1);
-				send_file_state = STATE_TRANSFER_COMPLETE;
+				err = tcp_write(pcb, outputBuf_ptr, size_of_byte_stream + sizeof(size_of_byte_stream), 1); // include sending the header
+				if (err != ERR_OK)
+				{
+					// Early return, stay in intial state
+					return;
+				}
+				else
+				{
+					send_file_state = STATE_TRANSFER_COMPLETE;
+				}
 			}
 			else
 			{
 				// Looks like we'll need to split up the data in multiple packets
-				err = tcp_write(pcb, (outputBuf_ptr + sizeof(size_of_byte_stream)), TCP_SND_BUF, 1);
-				bytes_to_be_sent_remaining = size_of_byte_stream - TCP_SND_BUF;
-				last_address_sent = outputBuf_ptr + TCP_SND_BUF;
-				send_file_state = STATE_TRANSFER_NOT_COMPLETE;
+				err = tcp_write(pcb, outputBuf_ptr, TCP_SND_BUF, 1);
+				if (err != ERR_OK)
+				{
+					// Early return, stay in initial state
+					return;
+				}
+				else
+				{
+					bytes_to_be_sent_remaining = size_of_byte_stream - TCP_SND_BUF;
+					last_address_sent = outputBuf_ptr + TCP_SND_BUF;
+					send_file_state = STATE_TRANSFER_NOT_COMPLETE;
+				}
 			}
 			break;
 		case STATE_TRANSFER_NOT_COMPLETE:
-			xil_printf("I still have %i!\n", bytes_to_be_sent_remaining);
 			if (bytes_to_be_sent_remaining <= TCP_SND_BUF)
 			{
 				// Cool, we can send the remaining bytes
-				err = tcp_write(pcb, last_address_sent, bytes_to_be_sent_remaining, 1);
-				send_file_state = STATE_TRANSFER_COMPLETE;
+				err = tcp_write(pcb, last_address_sent, bytes_to_be_sent_remaining + sizeof(size_of_byte_stream), 1); // Include header in transmission
+				if (err != ERR_OK)
+				{
+					// Failed to send data, early return, do not update anything
+					return;
+				}
+				else
+				{
+					send_file_state = STATE_TRANSFER_COMPLETE;
+					xil_printf("\nYAY Transfer is complete\n\r");
+				}
 			}
 			else
 			{
 				// We still have work to do, let's send more data
 				err = tcp_write(pcb, last_address_sent, TCP_SND_BUF, 1);
-				last_address_sent += TCP_SND_BUF;
-				bytes_to_be_sent_remaining -= TCP_SND_BUF;
+				if (err != ERR_OK)
+				{
+					// Failed to send data, early return, do not update anything
+					return;
+				}
+				else
+				{
+					last_address_sent += TCP_SND_BUF;
+					bytes_to_be_sent_remaining -= TCP_SND_BUF;
+				}
 			}
 			break;
 		case STATE_TRANSFER_COMPLETE:
-			return_data_available = 0;
-			send_file_state = STATE_INITIAL;
+			// Take no action
 			break;
 		default:
 			break;
-	}
-	if (err != ERR_OK)
-	{
-		xil_printf("We have an error with %i remaining\n", bytes_to_be_sent_remaining);
 	}
 }
 
 
 int start_application()
 {
-//	struct tcp_pcb *pcb;
 	err_t err;
 	unsigned port = 7;
-
-	// No data is available to send
-	return_data_available = 0;
 
 	/* create new TCP PCB structure */  //Daniel - we may need to make this public so we can send stuff in another function
 	pcb = tcp_new();
