@@ -43,7 +43,7 @@ int XAxiDma_Init(XAxiDma* AxiDma, u16 DeviceId)
 }
 
 
-bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *outputBuf_ptr, enum AESMODE mode) {
+bool AES_Process_init(const uint8_t* key, enum AESMODE mode) {
 
 	uint32_t *aes_process_address = (uint32_t*)XPAR_AES_PROCESS_0_S00_AXI_BASEADDR;
 
@@ -65,6 +65,11 @@ bool AES_Process(XAxiDma* AxiDma, const uint8_t* key, u32 *inputBuf_ptr, u32 *ou
 			return false;
 			break;
 	};
+	return true;
+}
+
+
+bool AES_Process(XAxiDma* AxiDma, u32 *inputBuf_ptr, u32 *outputBuf_ptr) {
 
 	/* Flush the SrcBuffer before the DMA transfer, in case the Data Cache
 	 * is enabled

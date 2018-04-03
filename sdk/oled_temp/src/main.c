@@ -6,6 +6,21 @@
  */
 #include "common.h"
 
+
+
+#include <stdio.h>
+#include "xil_io.h"
+#include "xil_mmu.h"
+#include "xil_exception.h"
+#include "xpseudo_asm.h"
+
+
+#define sev() __asm__("sev")
+#define CPU1STARTADR 0xfffffff0
+#define COMM_VAL  (*(volatile unsigned long *)(0xFFFF0000))
+#define FILESIZE_VAL    (*(volatile unsigned long *)(0xFFFF0004))
+
+
 void getKeyValue(XGpio* gpioSwitches, uint8_t* switchKey) {
 	/* Fixed keys and initialization vector (cbc) */
 	const uint8_t keys[] = {
@@ -147,21 +162,21 @@ int main(void){
 
 	/* Switches and LEDs Setup*/
 	XGpio gpioSwitches;
-	XGpio gpioLeds;
+//	XGpio gpioLeds;
 	uint8_t switchKey[16];
 
 	if(XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
 		printf("UH OH: GPIO SWS initialization failed\r\n");
 	};
-	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
-		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
-	};
+//	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
+//		printf("UH OH: GPIO2 LEDS initialization failed\r\n");
+//	};
 
 	// Set the direction of the bits in the GPIO.
 	// The lower (LSB) 8 bits of the GPIO are for the DIP Switches (inputs).
 	// The upper (MSB) 8 bits of the GPIO are for the LEDs (outputs).
 	XGpio_SetDataDirection(&gpioSwitches, 1, 0x00FF);
-	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
+//	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
 	/* MIO51 BTN9 Setup*/
 	XGpioPs_Config *GPIOConfigPtr;
@@ -176,12 +191,22 @@ int main(void){
 	SetupInterruptSystem(&Intc, &Gpio, GPIO_INTERRUPT_ID);
 
 	/* DMA */
-	XAxiDma AxiDma;
+	static XAxiDma AxiDma;
 	XAxiDma_Init(&AxiDma, DMA_DEV_ID);
+
+	/* Inter-processor */
+	//Disable cache on OCM
+	Xil_SetTlbAttributes(0xFFFF0000,0x14de2);           // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+	COMM_VAL = 0;
+
+	Xil_Out32(CPU1STARTADR, 0x00200000);
+	dmb(); //waits until write has finished
+
+	print("CPU0: sending the SEV to wake up CPU1\n\r");
+	sev();
 
 welcome_screen:
 	/* Start Screen */
-
 	while(!confirmation_screen(&gpioBtn, welcomeConfirmation)) {
 	}
 
@@ -223,20 +248,27 @@ ecb_file_encrypt:
 								goto ecb_file_encrypt;
 							} else {
 								print_screen(processingScreen);
+
 		                        /* Read the current specified file */
 		                        fileSizeRead = 0;
 		                        if(!read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
 		                            break;
 		                        }
 
+		                        FILESIZE_VAL = fileSizeRead;
+								COMM_VAL = 1;
+
 		                        // Padding need to fix...
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
+
+		                        // Init registers
+		                        AES_Process_init(switchKey, ENCRYPTION);
 
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
-									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, ENCRYPTION);
+									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {
@@ -248,9 +280,12 @@ ecb_file_encrypt:
 								}
 								/* Create output file */
 								write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+
+								COMM_VAL = 0;
 								if(!confirmation_screen(&gpioBtn, doneConfirmation)) {
 									break;
 								}
+
 							}
 						}
 ecb_file_encrypt_end:
@@ -301,11 +336,14 @@ ecb_file_decrypt:
 		                        // Padding need to fix...
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
 
+		                        // Init registers
+		                        AES_Process_init(switchKey, DECRYPTION);
+
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
-									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, DECRYPTION);
+									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {

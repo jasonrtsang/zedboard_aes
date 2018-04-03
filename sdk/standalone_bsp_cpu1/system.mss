@@ -5,7 +5,7 @@
 BEGIN OS
  PARAMETER OS_NAME = standalone
  PARAMETER OS_VER = 6.4
- PARAMETER PROC_INSTANCE = ps7_cortexa9_0
+ PARAMETER PROC_INSTANCE = ps7_cortexa9_1
  PARAMETER stdin = ps7_uart_1
  PARAMETER stdout = ps7_uart_1
 END
@@ -14,8 +14,8 @@ END
 BEGIN PROCESSOR
  PARAMETER DRIVER_NAME = cpu_cortexa9
  PARAMETER DRIVER_VER = 2.5
- PARAMETER HW_INSTANCE = ps7_cortexa9_0
- PARAMETER extra_compiler_flags = -g3 -O0 -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -nostartfiles -Wall -Wextra
+ PARAMETER HW_INSTANCE = ps7_cortexa9_1
+ PARAMETER extra_compiler_flags = -DUSE_AMP=1 -g3 -O0 -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -nostartfiles -Wall -Wextra
 END
 
 
@@ -239,21 +239,6 @@ BEGIN DRIVER
  PARAMETER DRIVER_NAME = emacps
  PARAMETER DRIVER_VER = 3.5
  PARAMETER HW_INSTANCE = ps7_ethernet_0
-END
-
-
-BEGIN LIBRARY
- PARAMETER LIBRARY_NAME = xilffs
- PARAMETER LIBRARY_VER = 3.7
- PARAMETER PROC_INSTANCE = ps7_cortexa9_0
- PARAMETER num_logical_vol = 1
-END
-
-
-BEGIN LIBRARY
- PARAMETER LIBRARY_NAME = lwip141
- PARAMETER LIBRARY_VER = 1.9
- PARAMETER PROC_INSTANCE = ps7_cortexa9_0
 END
 
 
