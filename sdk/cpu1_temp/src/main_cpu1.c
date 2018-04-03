@@ -60,6 +60,7 @@
 #include "sleep.h"
 
 #define COMM_VAL    (*(volatile unsigned long *)(0xFFFF0000))
+#define LED_DELAY 125000 // 0.25 seconds
 
 int main()
 {
@@ -74,14 +75,33 @@ int main()
 
 	COMM_VAL = 0;
 
+	XGpio_DiscreteWrite(&gpioLeds, 2, 0xFF);
+	usleep(LED_DELAY);
+	XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
+
 	while(1){
 
-		XGpio_DiscreteWrite(&gpioLeds, 2, 0xFF);
-		usleep(500000);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000000);
 
-		XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
-		usleep(500000);
 		while(COMM_VAL == 0);
+
+		// Loop 8 LEDS
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b10000000);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b01000000);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00100000);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00010000);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00001000);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000100);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000010);
+		usleep(LED_DELAY);
+		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000001);
+		usleep(LED_DELAY);
 
 	}
 

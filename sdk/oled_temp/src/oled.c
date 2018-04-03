@@ -47,10 +47,10 @@ bool confirmation_screen(XGpio* gpioBtn, char* printLines[]) {
 	while(1) {
 		dpadClick = XGpio_DiscreteRead(gpioBtn, 1);
 		if(dpadClick == CENTER) {
-			usleep(DEBOUNCE_DELAY);
+//			usleep(DEBOUNCE_DELAY);
 			return true;
 		} else if(dpadClick == LEFT) {
-			usleep(DEBOUNCE_DELAY);
+//			usleep(DEBOUNCE_DELAY);
 			return false;
 		}
 	}
@@ -91,7 +91,7 @@ int selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
 					i+=1;
 				}
 				refresh_oled(menuLines, numOfLines, i, true);
-				usleep(DEBOUNCE_DELAY);
+//				usleep(DEBOUNCE_DELAY);
 				break;
 			case UP:
 				clear();
@@ -99,7 +99,7 @@ int selection_screen(XGpio* gpioBtn, char* menuLines[], int numOfLines) {
 					i-=1;
 				}
 				refresh_oled(menuLines, numOfLines, i, true);
-				usleep(DEBOUNCE_DELAY);
+//				usleep(DEBOUNCE_DELAY);
 				break;
 			case LEFT:
 				return 0;
