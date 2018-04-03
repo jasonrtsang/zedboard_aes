@@ -258,11 +258,14 @@ ecb_file_encrypt:
 		                        // Padding need to fix...
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
 
+		                        // Init registers
+		                        AES_Process_init(switchKey, ENCRYPTION);
+
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
-									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, ENCRYPTION);
+									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {
@@ -330,11 +333,14 @@ ecb_file_decrypt:
 		                        // Padding need to fix...
 		                        int length = 16 * ((fileSizeRead + 15) / 16);
 
+		                        // Init registers
+		                        AES_Process_init(switchKey, DECRYPTION);
+
 								u32 *outputBuf_ptr = (u32*)RX_BUFFER_BASE;
 								u32 *inputBuf_ptr = (u32*)TX_BUFFER_BASE;
 								for (int i = 0; i < length; i += AES_BLOCKLEN)
 								{
-									AES_Process(&AxiDma, switchKey, inputBuf_ptr, outputBuf_ptr, DECRYPTION);
+									AES_Process(&AxiDma, inputBuf_ptr, outputBuf_ptr);
 									inputBuf_ptr += AES_BLOCKLEN/4;
 									outputBuf_ptr += AES_BLOCKLEN/4;
 								    if (cancelFlag) {

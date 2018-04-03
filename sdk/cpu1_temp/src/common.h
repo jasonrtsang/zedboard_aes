@@ -23,17 +23,8 @@
 #include <unistd.h>
 
 
-/* SD Headers */
-#include "ff.h"
-#include "xil_printf.h"
-#include "xil_cache.h"
-#include "xplatform_info.h"
-#include "xsdps.h"
-
 /* DMA Header */
 #include "xaxidma.h"
-
-#include "aes.h"
 
 
 typedef uint8_t bool;
@@ -64,8 +55,8 @@ enum AESMODE {ENCRYPTION = 0, DECRYPTION = 1};
 #define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
 
 #define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
-#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x07000000) // buffer ~1.5MB
-#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x0FFFFFFF) // buffer ~1.5MB
+#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00700000) // buffer ~1.5MB
+#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x00FFFFFF) // buffer ~1.5MB
 
 #define MAX_PKT_LEN_WORDS_SEND	4
 #define MAX_PKT_LEN_SEND			MAX_PKT_LEN_WORDS_SEND*4
@@ -86,22 +77,5 @@ char** format_fileList(char* inputFiles[], int numOfFiles);
 void format_cursor(char inputLine[], char *outputLine);
 void refresh_oled (char* printLines[], int numOfLines, int index, bool menu);
 
-/*********************************** SD *************************************/
-bool init_sd(FATFS* fatfs);
-bool format_sd(void);
-bool create_test_bin(int choice);
-bool write_to_file(const char *sdFile, const uint32_t *writeBuf, const uint32_t writeSize);
-bool read_from_file(const char *sdFile, uint32_t *readBuf, uint32_t *readSize);
-char** list_all_files(int* numOfFiles);
-
-/******************************** INTERRUPT *********************************/
-void My_XGpioPs_IntrHandler(XGpioPs *InstancePtr);
-void SetupInterruptSystem(XScuGic *GicInstancePtr, XGpioPs *Gpio, u16 GpioIntrId);
-void IntrHandler(void *CallBackRef, int Bank, u32 Status);
-
-/**********************************  DMA ************************************/
-int XAxiDma_Init(XAxiDma* AxiDma, u16 DeviceId);
-bool AES_Process(XAxiDma* AxiDma, u32 *inputBuf_ptr, u32 *outputBuf_ptr);
-bool AES_Process_init(const uint8_t* key, enum AESMODE mode);
 
 #endif /* SRC_COMMON_H_ */

@@ -56,8 +56,12 @@
 #include "xil_io.h"
 #include "xil_cache.h"
 #include "xil_exception.h"
-#include "xscugic.h"
+#include "xil_mmu.h"
 #include "sleep.h"
+
+#include "common.h"
+
+#include "ZedboardOLED.h"
 
 #define COMM_VAL    (*(volatile unsigned long *)(0xFFFF0000))
 #define LED_DELAY 125000 // 0.25 seconds
@@ -79,13 +83,28 @@ int main()
 	usleep(LED_DELAY);
 	XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
 
+	int counter = 0;
+
+	char printBuf[16];
+
+	char* processingScreen[] = {"  Time Elapsed  ",
+							    "                ",
+							    "    second(s)   ",
+							    "                "};
+
 	while(1){
 
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000000);
 
-		while(COMM_VAL == 0);
+		while(COMM_VAL == 0){
+			XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000000);
+			counter = 0;
+		}
+		print_screen(processingScreen);
+		snprintf(printBuf, sizeof(printBuf), "      %i", counter);
+		print_message(printBuf, 1);
 
-		// Loop 8 LEDS
+		// Loop 8 LEDS - 1 seconds loop
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b10000000);
 		usleep(LED_DELAY);
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b01000000);
@@ -102,6 +121,7 @@ int main()
 		usleep(LED_DELAY);
 		XGpio_DiscreteWrite(&gpioLeds, 2, 0b00000001);
 		usleep(LED_DELAY);
+		counter++;
 
 	}
 
