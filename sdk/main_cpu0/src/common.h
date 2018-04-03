@@ -81,4 +81,7 @@ bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *out
 void aes_init(void);
 enum STATUS aes_sd_process_run(enum AESMODE mode);
 
+/********************************** Ethernet ********************************/
+int ethernet_mode_run(void);
+
 #endif /* SRC_COMMON_H_ */
