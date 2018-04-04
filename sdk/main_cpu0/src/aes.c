@@ -165,7 +165,61 @@ void _aes_cbc_xor(uint8_t* buf, uint8_t* Iv)
 /*****************************************************************************/
 /**
 *
-* XOR two states
+*
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+enum STATUS _aes_cbc_run(uint32_t *inputBuf, uint32_t *outputBuf, int fileSize, enum AESMODE mode)
+{
+	int i;
+	const uint8_t iv_key[] =  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+	uint8_t *previousState  = malloc(AES_BLOCKLEN * sizeof(uint8_t));
+
+	memcpy(previousState, iv_key, AES_BLOCKLEN);
+
+	// Loop till entire file is done
+	for(i = 0; i < fileSize; i += AES_BLOCKLEN)
+	{
+		if(mode == ENCRYPTION) {
+			_aes_cbc_xor((uint8_t *)inputBuf, previousState);
+		}
+
+		// Stream state to AES_PROCESS IP
+		dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
+
+		if(mode == ENCRYPTION) {
+			memcpy(previousState, outputBuf, AES_BLOCKLEN);
+		}
+
+		if(mode == DECRYPTION) {
+			_aes_cbc_xor((uint8_t *)outputBuf, previousState);
+			memcpy(previousState, inputBuf, AES_BLOCKLEN);
+		}
+
+		inputBuf += AES_BLOCKLEN/4;
+		outputBuf += AES_BLOCKLEN/4;
+		// Cancel interrupt flag
+		if (cancelFlag) {
+			COMM_VAL = 0;
+			free(previousState);
+			return CANCELLED;
+		}
+	}
+	free(previousState);
+	return DONE;
+
+}
+
+/*****************************************************************************/
+/**
+*
+*
 *
 * @param    None
 *
@@ -191,6 +245,7 @@ enum STATUS _aes_ecb_run(uint32_t *inputBuf, uint32_t *outputBuf, int fileSize)
 			return CANCELLED;
 		}
 	}
+	return DONE;
 }
 
 /*****************************************************************************/
@@ -319,45 +374,23 @@ aes_sd_process_run_key:
 		_aes_process_init(switchKey, mode);
 
 
-
-
-
-
-		uint8_t *previousState = NULL;
-		const uint8_t iv_key[] =  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-		if(type == CBC) {
-			previousState = malloc(AES_BLOCKLEN * sizeof(uint8_t));
-			memcpy(previousState, iv_key, AES_BLOCKLEN);
-		}
-
-		// Loop till entire file is done
-		for(i = 0; i < fileSizeRead+bytesToPad-1; i += AES_BLOCKLEN)
-		{
-
-			if(type == CBC) {
-				_xorCBCState((uint8_t *)inputBuf, previousState);
-			}
-
-			// Stream state to AES_PROCESS IP
-			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
-			if(type == CBC) {
-				memcpy(previousState, outputBuf, AES_BLOCKLEN);
-			}
-			inputBuf += AES_BLOCKLEN/4;
-			outputBuf += AES_BLOCKLEN/4;
-			// Cancel interrupt flag
-			if (cancelFlag) {
-				COMM_VAL = 0;
+		switch(type) {
+			case ECB:
+				 if(CANCELLED == _aes_ecb_run(inputBuf, outputBuf, fileSizeRead+bytesToPad-1)) {
+					 return CANCELLED;
+				 }
+				break;
+			case CBC:
+				 if(CANCELLED == _aes_cbc_run(inputBuf, outputBuf, fileSizeRead+bytesToPad-1, mode)) {
+					 return CANCELLED;
+				 }
+				break;
+			default:
 				free(fileList);
 				free(fileListMenu);
-				return CANCELLED;
-			}
+				return FAILED; // Shouldn't reach here
+				break;
 		}
-
-
-
-
-
 
 
 		// Remove padding if decryption by adjusting the fileSizeRead
@@ -380,7 +413,6 @@ aes_sd_process_run_key:
 		COMM_VAL = 0;
 		free(fileList);
 		free(fileListMenu);
-		free(previousState);
 		return DONE;
 	} else {
 		// Back one menu if not file selection
