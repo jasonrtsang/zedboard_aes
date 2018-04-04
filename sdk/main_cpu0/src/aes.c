@@ -191,6 +191,9 @@ enum STATUS aes_sd_process_run(enum AESMODE mode)
 
 	int choice;
 
+	// Padding Variables
+	int bytesToPad;
+
 	// Get file list from SD and create menu format
 	fileList = sd_list_all_files(&numOfFiles);
 	fileListMenu = oled_format_fileList(fileList, numOfFiles); // numOfFiles offset by 1
@@ -231,7 +234,6 @@ aes_sd_process_run_key:
 		// Temporary processing screen before CPU1 is kicked off
 		oled_print_screen(processingScreen);
 
-		memset(TX_BUFFER_BASE, 0, 0x6400000);
 
 		// Read in file to transfer buffer
 		fileSizeRead = 0;
@@ -245,24 +247,25 @@ aes_sd_process_run_key:
 		FILESIZE_VAL = fileSizeRead;
 		COMM_VAL = 1;
 
-//		// Padding need to fix...
-//		int remainderLength = fileSizeRead % 16; // remainder length in bytes
-//		char pad = (char)(128-remainderLength*8);
-//
-//		if(i == fileSizeRead-1) {
-//			char pad = (char)(128-remainderLength*8);
-//			printf("pad = %d\n", pad);
-//			for(int i = strlen(inputBuf) ; i < 32 ; i++) {
-//				inputBuf[i] = pad;
-//			}
-//		}
+		// PKCS7 Padding so encrypted data is 16 bytes aligned
+		//  If already 16 bytes, add another 16 bytes
+		//  bytesToPad is 0 for decryption
+		bytesToPad = 0;
+		if(mode == ENCRYPTION) {
+			bytesToPad = 16 - fileSizeRead % 16; // Difference of remainder length in bytes
 
+			char pad = (char)(16-fileSizeRead%16); // Character pattern used for padding
+			uint8_t *inputBufEnd = (uint8_t *)TX_BUFFER_BASE;
+			for(int i = 0; i < bytesToPad ; i++) {
+				*(inputBufEnd+fileSizeRead+i) = pad;
+			}
+		}
 
 		// Init registers in AES_PROCESS IP
 		_aes_process_init(switchKey, mode);
 
 		// Loop till entire file is done
-		for(i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+		for(i = 0; i < fileSizeRead+bytesToPad-1; i += AES_BLOCKLEN)
 		{
 			// Stream state to AES_PROCESS IP
 			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
@@ -277,8 +280,21 @@ aes_sd_process_run_key:
 			}
 		}
 
+		// Remove padding if decryption by adjusting the fileSizeRead
+		if(mode == DECRYPTION) {
+			int newFileSize = fileSizeRead;
+			uint8_t *outputBufEnd = (uint8_t *)RX_BUFFER_BASE;
+			for(int i = fileSizeRead; i > fileSizeRead-16-1; i--) {
+				if(*(outputBufEnd+fileSizeRead-1) == *(outputBufEnd+i-2)) {
+					newFileSize-=1; // If last padding character matches previous, decrease file size
+				}
+			}
+			newFileSize-=1; // Remove original last one used for comparison
+			fileSizeRead = newFileSize;
+		}
+
 		// Create output file from return buffer
-		sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+		sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead+bytesToPad);
 
 		// Stop CPU1 processing screen
 		COMM_VAL = 0;
