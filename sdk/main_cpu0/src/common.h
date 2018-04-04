@@ -41,6 +41,7 @@ typedef uint8_t bool;
 #define false 0
 
 enum AESMODE {ENCRYPTION, DECRYPTION};
+enum AESTYPE {ECB, CBC};
 enum STATUS {DONE, FAILED, BACK, CANCELLED, EXIT}; // Leaving 0 as default case
 
 // Cancel interrupt flag
@@ -80,7 +81,7 @@ bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *out
 
 /**********************************  AES ************************************/
 void aes_init(void);
-enum STATUS aes_sd_process_run(enum AESMODE mode);
+enum STATUS aes_sd_process_run(enum AESTYPE type, enum AESMODE mode);
 
 /********************************** Ethernet ********************************/
 int ethernet_mode_run(void);
