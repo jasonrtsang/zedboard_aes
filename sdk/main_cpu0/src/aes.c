@@ -231,6 +231,7 @@ aes_sd_process_run_key:
 		// Temporary processing screen before CPU1 is kicked off
 		oled_print_screen(processingScreen);
 
+
 		// Read in file to transfer buffer
 		fileSizeRead = 0;
 		if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
@@ -261,7 +262,7 @@ aes_sd_process_run_key:
 		_aes_process_init(switchKey, mode);
 
 		// Loop till entire file is done
-		for(i = 0; i < fileSizeRead+bytesToFill; i += AES_BLOCKLEN)
+		for(i = 0; i < fileSizeRead+bytesToFill-1; i += AES_BLOCKLEN)
 		{
 			// Stream state to AES_PROCESS IP
 			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
@@ -280,10 +281,11 @@ aes_sd_process_run_key:
 			int newFileSize = fileSizeRead;
 			uint8_t *inputBufLast2 = (uint8_t *)RX_BUFFER_BASE;
 			for(int i = fileSizeRead; i > fileSizeRead-16-1; i--) {
-				if(*(inputBufLast2+i-1) == *(inputBufLast2+i-2)) {
+				if(*(inputBufLast2+fileSizeRead-1) == *(inputBufLast2+i-2)) {
 					newFileSize-=1;
 				}
 			}
+			newFileSize-=1; // Remove last one cause last check won't match the i-2
 			fileSizeRead = newFileSize;
 		}
 
