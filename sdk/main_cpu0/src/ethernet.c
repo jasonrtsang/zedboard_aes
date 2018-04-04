@@ -32,10 +32,14 @@ void platform_enable_interrupts();
 extern volatile int dhcp_timoutcntr;
 err_t dhcp_start(struct netif *netif);
 
+void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, enum AESMODE mode);
+
 extern volatile int TcpFastTmrFlag;
 extern volatile int TcpSlowTmrFlag;
 static struct netif server_netif;
 struct netif *echo_netif;
+
+static XAxiDma *ethernetAxiDma;
 
 typedef enum
 {
@@ -46,6 +50,7 @@ typedef enum
 
 // STATIC VARIABLES FOUND IN ECHO.C
 static u32 size_of_byte_stream = 0;
+static u32 header_info = 0;
 static u32 remaining_bytes = 0;
 static u8 *last_write_location;
 
@@ -82,11 +87,14 @@ void print_ip_settings(struct ip_addr *ip, struct ip_addr *mask, struct ip_addr 
 	print_ip("Gateway : ", gw);
 }
 
-
-int ethernet_mode_run(void)
+int ethernet_mode_run(XAxiDma *axiDma)
 {
-
+	// Notify the user of ethernet mode
 	oled_print_screen(enteringEthernetMode);
+
+	// Hold onto the axiDma address for use in the callback function
+	ethernetAxiDma = axiDma;
+
 	// Initialize ethernet interface
 	struct ip_addr ipaddr, netmask, gw;
 
@@ -96,7 +104,7 @@ int ethernet_mode_run(void)
 	
 	echo_netif = &server_netif;
 	
-	init_platform(); // WE WILL PROBABLY GET RID OF THIS, DO THE FUNCTIONALITY EARLIER
+	init_platform();
 	
 	ipaddr.addr = 0;
 	gw.addr = 0;
@@ -229,6 +237,7 @@ int start_application()
 err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
                                struct pbuf *p, err_t err)
 {
+	enum AESMODE mode;
 	u8 *inputBuf_ptr = (u8*)TX_BUFFER_BASE;
 	u8 *outputBuf_ptr = (u8*)RX_BUFFER_BASE;
 	/* do not read the packet if we are not in ESTABLISHED state */
@@ -244,22 +253,23 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 	switch(recv_file_state)
 	{
 		case STATE_INITIAL:
-			// Grab the information from the header (how big will the file be?)
+			// Grab the information from the header (how big will the file be and what mode?)
 			memcpy(&size_of_byte_stream, p->payload, sizeof(size_of_byte_stream));
+			memcpy(&header_info, p->payload + sizeof(size_of_byte_stream), sizeof(header_info));
 
-			if (size_of_byte_stream > p->len - sizeof(size_of_byte_stream))
+			if (size_of_byte_stream > p->len - sizeof(size_of_byte_stream) - sizeof(header_info))
 			{
 				// We know to expect more packets, so get ready to come to this state machine again
 				recv_file_state = STATE_TRANSFER_NOT_COMPLETE;
 				// Now let's store that data
-				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream)), p->len - sizeof(size_of_byte_stream));
-				remaining_bytes = size_of_byte_stream - (p->len - sizeof(size_of_byte_stream));
+				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream) + sizeof(header_info)), p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
+				remaining_bytes = size_of_byte_stream - (p->len - sizeof(header_info));
 				// And we'll need to save the place in the buffer where to write the next bit of data
-				last_write_location = inputBuf_ptr + (p->len - sizeof(size_of_byte_stream));
+				last_write_location = inputBuf_ptr + (p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
 			}
 			else
 			{
-				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream)), p->len - sizeof(size_of_byte_stream));
+				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream) + sizeof(header_info)), p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
 				recv_file_state = STATE_TRANSFER_COMPLETE;
 			}
 			break;
@@ -294,8 +304,22 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 		// now do stuff here like encrypt the data
 		// for now we'll just copy the data to our RX_Buffer and send that back
 		// THIS is where the encryption/decryption should occur
+
+		/////// LET US DO SOME ENCRYPTION HERE BABY WOEOEOEOEOO
+		// TODO Add header to deal with ENC/DEC flag
+		if (0 == header_info)
+		{
+			mode = ENCRYPTION;
+		}
+		else
+		{
+			mode = DECRYPTION;
+		}
+		// Temp memset
+		memset(outputBuf_ptr, 0xAD, 100);
+		perform_encryption((u32*)(outputBuf_ptr + sizeof(size_of_byte_stream)), (u32*)(inputBuf_ptr), size_of_byte_stream, mode); // Ignore the headers
 		memcpy(outputBuf_ptr, &size_of_byte_stream, sizeof(size_of_byte_stream)); // Add the byte header
-		memcpy(outputBuf_ptr + sizeof(size_of_byte_stream), inputBuf_ptr, size_of_byte_stream);
+
 		// Kick off the send data
 		send_data_over_ethernet();
 	}
@@ -304,6 +328,30 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 	pbuf_free(p);
 
 	return ERR_OK;
+}
+
+void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, enum AESMODE mode)
+{
+//	uint32_t *outputBuf = (u32*)RX_BUFFER_BASE;
+//	uint32_t *inputBuf = (u32*)TX_BUFFER_BASE + 1;
+	int ii = 0;
+	const uint8_t ethernet_key[16] = {0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7};
+
+	aes_process_init(ethernet_key, mode);
+
+	// Loop till entire file is done
+	for(ii = 0; ii < data_len; ii += AES_BLOCKLEN)
+	{
+		// Stream state to AES_PROCESS IP
+		dma_aes_process_transfer(ethernetAxiDma, inputBuf, outputBuf);
+		inputBuf += AES_BLOCKLEN/4;
+		outputBuf += AES_BLOCKLEN/4;
+		// Cancel interrupt flag
+		if (cancelFlag) {
+			xil_printf("CANCEL FLAG WORKED");
+			return;
+		}
+	}
 }
 
 
@@ -363,6 +411,9 @@ void send_data_over_ethernet(void)
 		case STATE_INITIAL:
 			// Need to extract size of file to be transferred
 			xil_printf("\nSending data to host!\n");
+
+			// WARINING, SHITTY HACK, subtract one from size of byte stream because we aren't including the mode anymore
+			size_of_byte_stream--;
 			memcpy(&size_of_byte_stream, outputBuf_ptr, sizeof(size_of_byte_stream));
 			if (size_of_byte_stream < TCP_SND_BUF)
 			{

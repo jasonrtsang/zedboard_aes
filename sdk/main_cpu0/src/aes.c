@@ -8,10 +8,9 @@
 #include "common.h"
 
 /******************************* Definitions *********************************/
-#define AES_BLOCKLEN 16 // Block length in bytes for 128-bit AES
 
 XGpio gpioSwitches;
-XAxiDma axiDma;
+//XAxiDma axiDma;
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -28,7 +27,7 @@ XAxiDma axiDma;
 *
 **/
 /*****************************************************************************/
-bool _aes_process_init(const uint8_t *key, enum AESMODE mode)
+bool aes_process_init(const uint8_t *key, enum AESMODE mode)
 {
 	uint32_t *aesProcessAddress = (uint32_t*)XPAR_AES_PROCESS_0_S00_AXI_BASEADDR;
 
@@ -127,7 +126,7 @@ void _getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 **/
 /*****************************************************************************/
 void aes_init(void) {
-	dma_init(&axiDma);
+//	dma_init(&axiDma);
 
 	if(XST_SUCCESS != XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID)) {
 #if UART_PRINT
@@ -153,7 +152,7 @@ void aes_init(void) {
 *
 **/
 /*****************************************************************************/
-enum STATUS aes_sd_process_run(enum AESMODE mode)
+enum STATUS aes_sd_process_run(enum AESMODE mode, XAxiDma *axiDma)
 {
 	char* keyConfirmation[] =     {"  Please enter  ",
 							       " AES key using  ",
@@ -259,13 +258,13 @@ aes_sd_process_run_key:
 
 
 		// Init registers in AES_PROCESS IP
-		_aes_process_init(switchKey, mode);
+		aes_process_init(switchKey, mode);
 
 		// Loop till entire file is done
 		for(i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
 		{
 			// Stream state to AES_PROCESS IP
-			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
+			dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
 			inputBuf += AES_BLOCKLEN/4;
 			outputBuf += AES_BLOCKLEN/4;
 			// Cancel interrupt flag
