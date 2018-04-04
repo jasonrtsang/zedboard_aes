@@ -171,7 +171,7 @@ enum STATUS aes_sd_process_run(enum AESMODE mode)
 							       "Click < to abort"};
 
 	char* processingScreen[] =    {"                ",
-							       "   Processing   ",
+							       "  Loading file  ",
 							       "      ....      ",
 							       "                "};
 
@@ -222,6 +222,8 @@ aes_sd_process_run_key:
 				}
 				break;
 			default:
+				free(fileList);
+				free(fileListMenu);
 				return FAILED; // Shouldn't reach here
 				break;
 		};
@@ -229,9 +231,13 @@ aes_sd_process_run_key:
 		// Temporary processing screen before CPU1 is kicked off
 		oled_print_screen(processingScreen);
 
+		memset(TX_BUFFER_BASE, 0, 0x6400000);
+
 		// Read in file to transfer buffer
 		fileSizeRead = 0;
 		if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
+			free(fileList);
+			free(fileListMenu);
 			return FAILED;
 		}
 
@@ -239,14 +245,24 @@ aes_sd_process_run_key:
 		FILESIZE_VAL = fileSizeRead;
 		COMM_VAL = 1;
 
-		// Padding need to fix...
-		int length = 16 * ((fileSizeRead + 15) / 16);
+//		// Padding need to fix...
+//		int remainderLength = fileSizeRead % 16; // remainder length in bytes
+//		char pad = (char)(128-remainderLength*8);
+//
+//		if(i == fileSizeRead-1) {
+//			char pad = (char)(128-remainderLength*8);
+//			printf("pad = %d\n", pad);
+//			for(int i = strlen(inputBuf) ; i < 32 ; i++) {
+//				inputBuf[i] = pad;
+//			}
+//		}
+
 
 		// Init registers in AES_PROCESS IP
 		_aes_process_init(switchKey, mode);
 
 		// Loop till entire file is done
-		for (i = 0; i < length; i += AES_BLOCKLEN)
+		for(i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
 		{
 			// Stream state to AES_PROCESS IP
 			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
@@ -271,6 +287,8 @@ aes_sd_process_run_key:
 		return DONE;
 	} else {
 		// Back one menu if not file selection
+		free(fileList);
+		free(fileListMenu);
 		return BACK;
 	}
 }
