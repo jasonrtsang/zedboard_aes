@@ -31,6 +31,7 @@ void _main_initialization(void) {
     oled_init(); // DPAD GPIO
     gic_init(); // GIC, BTN9 GPIO
     aes_init(); // DMA, Switches GPIO
+	sd_init(); // Mount SD
 
 	// Inter-processor setup for CPU1
 	COMM_VAL = 0;
@@ -64,7 +65,7 @@ int main(void){
 						"  ECB mode      ",
 						"  CBC mode      ",
 						"  Ethernet mode ",
-						"  Reformat      ",
+						"  Reformat SD   ",
 						"  Quit          "};
 
 	char* reformatConfirmation[] = {"Erase/ format SD",
@@ -116,8 +117,6 @@ int main(void){
 		cancelFlag = false;
 		// Main Menu selection
 		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
-		// Refresh SD mount
-		sd_init();
 		switch (choice) {
 			case 1: // ECB
 ecb_menu:
@@ -131,10 +130,12 @@ ecb_menu:
 						aesStatus = aes_sd_process_run(DECRYPTION);
 						break;
 					default:
+						aesStatus = EXIT;
 						break;
 				}
 				switch(aesStatus) {
 					case DONE:
+						usleep(250000); // Prevent race case for OLED
 						while(!oled_confirmation_screen(doneConfirmation));
 						break;
 					case FAILED:
@@ -145,10 +146,11 @@ ecb_menu:
 						break;
 					case CANCELLED:
 						cancelFlag = false;
+						usleep(250000); // Prevent race case for OLED
 						while(!oled_confirmation_screen(cancelConfirmation));
 						break;
+					case EXIT:
 					default:
-						return false; // Shouldn't ever reach here
 						break;
 				};
 				break;

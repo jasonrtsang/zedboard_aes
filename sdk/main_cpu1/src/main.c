@@ -72,8 +72,8 @@ int main()
 							    "                "};
 	// Progress variables
 	int secondsLeft;
-	int percentageComplete;
-	int percentageIncrements;
+	double percentageComplete;
+	double percentageIncrements;
 	uint8_t ledLocation;
 	int ledLoopCounter;
 	bool firstLoop;
@@ -95,25 +95,27 @@ int main()
 		// First kick off initializations
 		if(firstLoop) {
 			percentageComplete = 0;
-			secondsLeft = FILESIZE_VAL / 0x280000; // 10mb A0 0000 takes 4 seconds = 20 0000 per second
-			percentageIncrements = 100 / secondsLeft;
+			secondsLeft = FILESIZE_VAL/0x280000; // 10mb A0 0000 takes 4 seconds = 20 0000 per second
+			percentageIncrements = 100/(double)secondsLeft; // Rounding up decimal
 			ledLocation = 128; // 0b10000000
 			ledLoopCounter = 0;
 			firstLoop = false;
 		}
 
 		// Print progress screen
-		oled_print_screen(processingScreen);
-		snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
-		oled_print_line(printBuf, 1);
-		snprintf(printBuf, sizeof(printBuf), "      ~ %i", percentageComplete);
-		oled_print_line(printBuf, 3);
+		if(COMM_VAL == 1) {
+			oled_print_screen(processingScreen);
+			snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
+			oled_print_line(printBuf, 1);
+			snprintf(printBuf, sizeof(printBuf), "      ~ %i", (int)percentageComplete);
+			oled_print_line(printBuf, 3);
+		}
 
 		// Loop 8 LEDS - 1 seconds loop
-		while(COMM_VAL ==1 && ledLoopCounter < 8) {
-			ledLocation = ledLocation >> 1;
+		while(COMM_VAL == 1 && ledLoopCounter < 8) {
 			XGpio_DiscreteWrite(&gpioLeds, 2, ledLocation);
 			usleep(LED_DELAY);
+			ledLocation = ledLocation >> 1;
 			ledLoopCounter++;
 		}
 		// Reset back to start

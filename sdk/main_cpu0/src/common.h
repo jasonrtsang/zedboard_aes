@@ -41,7 +41,7 @@ typedef uint8_t bool;
 #define false 0
 
 enum AESMODE {ENCRYPTION, DECRYPTION};
-enum STATUS {DONE, FAILED, BACK, CANCELLED};
+enum STATUS {DONE, FAILED, BACK, CANCELLED, EXIT}; // Leaving 0 as default case
 
 // Cancel interrupt flag
 extern bool cancelFlag;
