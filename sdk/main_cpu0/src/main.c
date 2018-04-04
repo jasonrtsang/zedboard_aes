@@ -155,7 +155,8 @@ ecb_menu:
 			case 2: // CBC
 				break;
 			case 3: // Ethernet
-				break;
+				ethernet_mode_run();
+//				break;
 			case 4: // Reformat
 				if(!oled_confirmation_screen(reformatConfirmation)) {
 					break;

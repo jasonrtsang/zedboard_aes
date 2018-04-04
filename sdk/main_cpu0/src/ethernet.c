@@ -1,61 +1,41 @@
-/******************************************************************************
-*
-* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-* copies of the Software, and to permit persons to whom the Software is
-* furnished to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in
-* all copies or substantial portions of the Software.
-*
-* Use of the Software is limited solely to applications:
-* (a) running on a Xilinx device, or
-* (b) that interact with a Xilinx device through a bus or interconnect.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
-* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-* SOFTWARE.
-*
-* Except as contained in this notice, the name of the Xilinx shall not be used
-* in advertising or otherwise to promote the sale, use or other dealings in
-* this Software without prior written authorization from Xilinx.
-*
-******************************************************************************/
+/*
+ * ethernet.c
+ *
+ *  Created on: Apr 3, 2018
+ *      Author: drdixon
+ */
 
-#include <stdio.h>
-#include <string.h>
-
-#include "lwip/err.h"
+#include "common.h"
 #include "lwip/tcp.h"
-#if defined (__arm__) || defined (__aarch64__)
-#include "xil_printf.h"
-#endif
+#include "lwip/dhcp.h"
+#include "xil_cache.h"
 
-// Defines
-#define MEM_BASE_ADDR		(XPAR_PS7_DDR_0_S_AXI_BASEADDR + 0x10000000)
-#define TX_BUFFER_BASE		(MEM_BASE_ADDR + 0x00100000)
-#define RX_BUFFER_BASE		(MEM_BASE_ADDR + 0x06500000) // buffer ~100MB
-#define RX_BUFFER_HIGH		(MEM_BASE_ADDR + 0x0C900000) // buffer ~100MB
+#include "netif/xadapter.h"
 
-void send_data_over_ethernet(void);
 
-int transfer_data() {
-	return 0;
-}
+/* defined by each RAW mode application */
+int start_application();
+int transfer_data();
+void send_data_over_ethernet();
 
-void print_app_header()
-{
-	xil_printf("\n\r\n\r-----File Store Server -------\n\r");
-	xil_printf("TCP packets will be echoed back\n\r");
-}
+void tcp_fasttmr(void);
+void tcp_slowtmr(void);
+
+/* missing declaration in lwIP */
+void lwip_init();
+
+// More functions found in original Echo.c
+err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err);
+// In platform.c
+void platform_enable_interrupts();
+
+extern volatile int dhcp_timoutcntr;
+err_t dhcp_start(struct netif *netif);
+
+extern volatile int TcpFastTmrFlag;
+extern volatile int TcpSlowTmrFlag;
+static struct netif server_netif;
+struct netif *echo_netif;
 
 typedef enum
 {
@@ -64,7 +44,7 @@ typedef enum
 		STATE_TRANSFER_COMPLETE,
 }file_transfer_state_E;
 
-// Static variables
+// STATIC VARIABLES FOUND IN ECHO.C
 static u32 size_of_byte_stream = 0;
 static u32 remaining_bytes = 0;
 static u8 *last_write_location;
@@ -76,6 +56,175 @@ static file_transfer_state_E recv_file_state = STATE_INITIAL;
 static file_transfer_state_E send_file_state = STATE_INITIAL;
 
 static struct tcp_pcb *pcb;
+// END OF STATIC IN ECHO.C
+
+// Now let's have some stuff for the OLED
+char* enteringEthernetMode[] = {"    ENTERING    ",
+							    "    ETHERNET    ",
+							    "     MODE       ",
+							    "                "};
+
+char printbuf[16];
+
+
+void print_ip(char *msg, struct ip_addr *ip)
+{
+	print(msg);
+	xil_printf("%d.%d.%d.%d\n\r", ip4_addr1(ip), ip4_addr2(ip),
+			ip4_addr3(ip), ip4_addr4(ip));
+}
+
+void print_ip_settings(struct ip_addr *ip, struct ip_addr *mask, struct ip_addr *gw)
+{
+
+	print_ip("Board IP: ", ip);
+	print_ip("Netmask : ", mask);
+	print_ip("Gateway : ", gw);
+}
+
+
+int ethernet_mode_run(void)
+{
+
+	oled_print_screen(enteringEthernetMode);
+	// Initialize ethernet interface
+	struct ip_addr ipaddr, netmask, gw;
+
+	/* the mac address of the board. this should be unique per board */
+	unsigned char mac_ethernet_address[] =
+	{ 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
+	
+	echo_netif = &server_netif;
+	
+	init_platform(); // WE WILL PROBABLY GET RID OF THIS, DO THE FUNCTIONALITY EARLIER
+	
+	ipaddr.addr = 0;
+	gw.addr = 0;
+	netmask.addr = 0;
+	
+	lwip_init();
+	
+	if (!xemac_add(echo_netif, &ipaddr, &netmask,
+						&gw, mac_ethernet_address,
+						XPAR_XEMACPS_0_BASEADDR)) {
+		xil_printf("Error adding N/W interface\n\r");
+		return -1;
+	}
+	netif_set_default(echo_netif);
+	
+	/* now enable interrupts */
+	platform_enable_interrupts();  // AGAIN, THIS IS ON A DIFFERENT PLATFORM, NEED TO FIX THIS
+
+	/* specify that the network if is up */
+	netif_set_up(echo_netif);
+	
+	/* Create a new DHCP client for this interface.
+	 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
+	 * the predefined regular intervals after starting the client.
+	 */
+	dhcp_start(echo_netif);
+	dhcp_timoutcntr = 24;
+
+	while(((echo_netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0))
+		xemacif_input(echo_netif);
+
+	if (dhcp_timoutcntr <= 0) {
+		if ((echo_netif->ip_addr.addr) == 0) {
+			xil_printf("DHCP Timeout\r\n");
+			xil_printf("Configuring default IP of 192.168.1.10\r\n");
+			IP4_ADDR(&(echo_netif->ip_addr),  192, 168,   1, 10);
+			IP4_ADDR(&(echo_netif->netmask), 255, 255, 255,  0);
+			IP4_ADDR(&(echo_netif->gw),      192, 168,   1,  1);
+		}
+	}
+
+	ipaddr.addr = echo_netif->ip_addr.addr;
+	gw.addr = echo_netif->gw.addr;
+	netmask.addr = echo_netif->netmask.addr;
+	
+	// TODO, PRINT IP ADDRESS AND PORT HERE ON OLED
+	print_ip_settings(&ipaddr, &netmask, &gw);
+	
+	oled_clear();
+
+	sprintf(printbuf, "   Ethernet IP  ");
+	oled_print_line(printbuf, 0);
+	sprintf(printbuf, "%d.%d.%d.%d", ip4_addr1(&ipaddr), ip4_addr2(&ipaddr),ip4_addr3(&ipaddr), ip4_addr4(&ipaddr));
+	oled_print_line(printbuf, 1);
+
+
+	start_application();
+	
+	/* receive and process packets */
+	while (1) {
+		if (TcpFastTmrFlag) {
+			tcp_fasttmr();
+			TcpFastTmrFlag = 0;
+		}
+		if (TcpSlowTmrFlag) {
+			tcp_slowtmr();
+			TcpSlowTmrFlag = 0;
+		}
+		xemacif_input(echo_netif);
+		transfer_data();
+		// TODO - NEED TO ADD CANCEL BUTTON INTERRUPT HERE
+		if (cancelFlag)
+		{
+			break;
+		}
+	}
+  
+	/* never reached */
+	cleanup_platform();
+
+	return 0;
+}
+
+int transfer_data() {
+	return 0;
+}
+
+int start_application()
+{
+	err_t err;
+	unsigned port = 7;
+
+	/* create new TCP PCB structure */  //Daniel - we may need to make this public so we can send stuff in another function
+	pcb = tcp_new();
+	if (!pcb) {
+		xil_printf("Error creating PCB. Out of Memory\n\r");
+		return -1;
+	}
+
+	/* bind to specified @port */
+	err = tcp_bind(pcb, IP_ADDR_ANY, port);
+	if (err != ERR_OK) {
+		xil_printf("Unable to bind to port %d: err = %d\n\r", port, err);
+		return -2;
+	}
+
+	/* we do not need any arguments to callback functions */
+	tcp_arg(pcb, NULL);
+
+	/* listen for connections */
+	pcb = tcp_listen(pcb);
+	if (!pcb) {
+		xil_printf("Out of memory while tcp_listen\n\r");
+		return -3;
+	}
+
+	/* specify callback to use for incoming connections */
+	tcp_accept(pcb, accept_callback);
+
+	xil_printf("TCP echo server started @ port %d\n\r", port);
+
+	sprintf(printbuf, "      Port      ");
+	oled_print_line(printbuf, 2);
+	sprintf(printbuf, "        %i", port);
+	oled_print_line(printbuf, 3);
+
+	return 0;
+}
 
 err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
                                struct pbuf *p, err_t err)
@@ -286,40 +435,3 @@ void send_data_over_ethernet(void)
 	}
 }
 
-
-int start_application()
-{
-	err_t err;
-	unsigned port = 7;
-
-	/* create new TCP PCB structure */  //Daniel - we may need to make this public so we can send stuff in another function
-	pcb = tcp_new();
-	if (!pcb) {
-		xil_printf("Error creating PCB. Out of Memory\n\r");
-		return -1;
-	}
-
-	/* bind to specified @port */
-	err = tcp_bind(pcb, IP_ADDR_ANY, port);
-	if (err != ERR_OK) {
-		xil_printf("Unable to bind to port %d: err = %d\n\r", port, err);
-		return -2;
-	}
-
-	/* we do not need any arguments to callback functions */
-	tcp_arg(pcb, NULL);
-
-	/* listen for connections */
-	pcb = tcp_listen(pcb);
-	if (!pcb) {
-		xil_printf("Out of memory while tcp_listen\n\r");
-		return -3;
-	}
-
-	/* specify callback to use for incoming connections */
-	tcp_accept(pcb, accept_callback);
-
-	xil_printf("TCP echo server started @ port %d\n\r", port);
-
-	return 0;
-}

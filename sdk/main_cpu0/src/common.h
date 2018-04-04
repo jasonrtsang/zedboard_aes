@@ -62,6 +62,7 @@ void   oled_print_screen(char* printLines[]);
 bool   oled_confirmation_screen(char* printLines[]);
 int    oled_selection_screen(char* printLines[], int numOfLines);
 char** oled_format_fileList(char* inputFiles[], int numOfFiles);
+void oled_print_line(char* printLine, int index);
 
 /*********************************** SD *************************************/
 bool   sd_init(void);
@@ -80,5 +81,8 @@ bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *out
 /**********************************  AES ************************************/
 void aes_init(void);
 enum STATUS aes_sd_process_run(enum AESMODE mode);
+
+/********************************** Ethernet ********************************/
+int ethernet_mode_run(void);
 
 #endif /* SRC_COMMON_H_ */
