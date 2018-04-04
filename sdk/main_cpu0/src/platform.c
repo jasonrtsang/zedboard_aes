@@ -210,19 +210,36 @@ void platform_enable_interrupts()
 	return;
 }
 
+void disable_timer_interrupt()
+{
+	Xil_ExceptionDisableMask(XIL_EXCEPTION_IRQ);
+	XScuTimer_DisableInterrupt(&TimerInstance);
+}
+
+void enable_timer_interrupt()
+{
+	Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
+	XScuTimer_EnableInterrupt(&TimerInstance);
+}
+
 void init_platform()
 {
 	platform_setup_timer();
 	platform_setup_interrupts();
-
 	return;
 }
 
-void cleanup_platform()
+void disable_cache_platform()
 {
 	Xil_ICacheDisable();
 	Xil_DCacheDisable();
 	return;
+}
+
+void enable_cache_platform()
+{
+	Xil_ICacheEnable();
+	Xil_ICacheEnable();
 }
 #endif
 

@@ -161,7 +161,7 @@ ecb_menu:
 				break;
 			case 3: // Ethernet
 				ethernet_mode_run(&axiDma);
-//				break;
+				break;
 			case 4: // Reformat
 				if(!oled_confirmation_screen(reformatConfirmation)) {
 					break;
