@@ -231,8 +231,6 @@ aes_sd_process_run_key:
 		// Temporary processing screen before CPU1 is kicked off
 		oled_print_screen(processingScreen);
 
-		memset(TX_BUFFER_BASE, 0, 0x6400000);
-
 		// Read in file to transfer buffer
 		fileSizeRead = 0;
 		if(!sd_read_from_file(fileList[choice-1], (u32*)TX_BUFFER_BASE, &fileSizeRead)) {
@@ -245,24 +243,25 @@ aes_sd_process_run_key:
 		FILESIZE_VAL = fileSizeRead;
 		COMM_VAL = 1;
 
-//		// Padding need to fix...
-//		int remainderLength = fileSizeRead % 16; // remainder length in bytes
-//		char pad = (char)(128-remainderLength*8);
-//
-//		if(i == fileSizeRead-1) {
-//			char pad = (char)(128-remainderLength*8);
-//			printf("pad = %d\n", pad);
-//			for(int i = strlen(inputBuf) ; i < 32 ; i++) {
-//				inputBuf[i] = pad;
-//			}
-//		}
+		int bytesToFill = 0;
+		if(mode == ENCRYPTION) {
+			// Padding need to fix...
+			int remainderLength = fileSizeRead % 16; // remainder length in bytes
+			bytesToFill = 16 - remainderLength;
 
+			char pad = (char)(16-remainderLength); // difference in bits remaining to pad
+
+			uint8_t *inputBufLast = (uint8_t *)TX_BUFFER_BASE;
+			for(int i = 0; i < bytesToFill ; i++) {
+				*(inputBufLast+fileSizeRead+i) = pad;
+			}
+		}
 
 		// Init registers in AES_PROCESS IP
 		_aes_process_init(switchKey, mode);
 
 		// Loop till entire file is done
-		for(i = 0; i < fileSizeRead; i += AES_BLOCKLEN)
+		for(i = 0; i < fileSizeRead+bytesToFill; i += AES_BLOCKLEN)
 		{
 			// Stream state to AES_PROCESS IP
 			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
@@ -277,8 +276,19 @@ aes_sd_process_run_key:
 			}
 		}
 
+		if(mode == DECRYPTION) {
+			int newFileSize = fileSizeRead;
+			uint8_t *inputBufLast2 = (uint8_t *)RX_BUFFER_BASE;
+			for(int i = fileSizeRead; i > fileSizeRead-16-1; i--) {
+				if(*(inputBufLast2+i-1) == *(inputBufLast2+i-2)) {
+					newFileSize-=1;
+				}
+			}
+			fileSizeRead = newFileSize;
+		}
+
 		// Create output file from return buffer
-		sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead);
+		sd_write_to_file(fileList[choice-1], (u32*)RX_BUFFER_BASE, fileSizeRead+bytesToFill);
 
 		// Stop CPU1 processing screen
 		COMM_VAL = 0;
