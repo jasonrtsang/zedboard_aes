@@ -80,7 +80,6 @@ int main(void){
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
 
-	const uint8_t iv_key[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 	char* cbcMenu[] = {"CBC action:     ",
 			           "  Encrypt file  ",
 					   "  Decrypt file  "};
@@ -127,10 +126,10 @@ ecb_menu:
 				choice = oled_selection_screen(ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
-						aesStatus = aes_sd_process_run(ENCRYPTION, &axiDma);
+						aesStatus = aes_sd_process_run(ECB, ENCRYPTION, &axiDma);
 						break;
 					case 2: // Decrypt
-						aesStatus = aes_sd_process_run(DECRYPTION, &axiDma);
+						aesStatus = aes_sd_process_run(ECB, DECRYPTION, &axiDma);
 						break;
 					default:
 						aesStatus = EXIT;
@@ -158,6 +157,39 @@ ecb_menu:
 				};
 				break;
 			case 2: // CBC
+cbc_menu:
+				choice = oled_selection_screen(cbcMenu, sizeof(cbcMenu)/4);
+				switch (choice) {
+					case 1: // Encrypt
+						aesStatus = aes_sd_process_run(CBC, ENCRYPTION, &axiDma);
+						break;
+					case 2: // Decrypt
+						aesStatus = aes_sd_process_run(CBC, DECRYPTION, &axiDma);
+						break;
+					default:
+						aesStatus = EXIT;
+						break;
+				}
+				switch(aesStatus) {
+					case DONE:
+						usleep(250000); // Prevent race case for OLED
+						while(!oled_confirmation_screen(doneConfirmation));
+						break;
+					case FAILED:
+						while(!oled_confirmation_screen(failedConfirmation));
+						break;
+					case BACK:
+						goto cbc_menu;
+						break;
+					case CANCELLED:
+						cancelFlag = false;
+						usleep(250000); // Prevent race case for OLED
+						while(!oled_confirmation_screen(cancelConfirmation));
+						break;
+					case EXIT:
+					default:
+						break;
+				};
 				break;
 			case 3: // Ethernet
 				ethernet_mode_run(&axiDma);
