@@ -131,7 +131,7 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		netif_set_default(echo_netif);
 
 		/* now enable interrupts */
-		platform_enable_interrupts();  // AGAIN, THIS IS ON A DIFFERENT PLATFORM, NEED TO FIX THIS
+		platform_enable_interrupts();
 	
 		/* specify that the network if is up */
 		netif_set_up(echo_netif);
@@ -160,7 +160,7 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		gw.addr = echo_netif->gw.addr;
 		netmask.addr = echo_netif->netmask.addr;
 
-		disable_cache_platform();
+//		disable_cache_platform();
 
 		ethernet_initialized = 1;
 	}
@@ -169,7 +169,6 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		// We are already initialized
 	}
 	
-	// TODO, PRINT IP ADDRESS AND PORT HERE ON OLED
 	print_ip_settings(&ipaddr, &netmask, &gw);
 	
 	oled_clear();
@@ -194,7 +193,6 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		}
 		xemacif_input(echo_netif);
 		transfer_data();
-		// TODO - NEED TO ADD CANCEL BUTTON INTERRUPT HERE
 		if (cancelFlag)
 		{
 			// Do some cleanup
@@ -246,7 +244,7 @@ int start_application()
 	}
 	else
 	{
-		// We have already set up the pcb
+		// NOOP - We have already set up the pcb
 	}
 
 	xil_printf("TCP echo server started @ port %d\n\r", port);
@@ -310,8 +308,6 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 			{
 				// We have gotten all the info!
 				recv_file_state = STATE_TRANSFER_COMPLETE;
-				//temporarily add NULL to end of buffer for printing purposes
-				*(last_write_location + p->len) = 0x00;
 			}
 			else
 			{
@@ -347,14 +343,11 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 		// TODO - Temp memset, can remove soon
 		memset(outputBuf_ptr, 0xAD, 100);
 
-		disable_timer_interrupt();
 		// We want to remove the header info count from the byte stream size
 		size_of_byte_stream -= sizeof(header_info);
 
-		// Disable the encrypt/decrypt because it isn't working
 		perform_encryption((u32*)(outputBuf_ptr + sizeof(size_of_byte_stream)), (u32*)(inputBuf_ptr), size_of_byte_stream, mode); // Ignore the headers
 
-		enable_timer_interrupt();
 		memcpy(outputBuf_ptr, &size_of_byte_stream, sizeof(size_of_byte_stream)); // Add the byte header
 
 		// Kick off the send data
@@ -366,15 +359,29 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 
 void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, enum AESMODE mode)
 {
+	int bytesToPad;
 	int ii = 0;
 	const uint8_t ethernet_key[16] = {0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7};
 
+	bytesToPad = 0;
+ 	if(mode == ENCRYPTION) {
+		bytesToPad = 16 - data_len % 16; // Difference of remainder length in bytes
+
+		char pad = (char)(16-data_len%16); // Character pattern used for padding
+		uint8_t *inputBufEnd = (uint8_t *)TX_BUFFER_BASE;
+		for(int i = 0; i < bytesToPad ; i++) {
+			*(inputBufEnd+data_len+i) = pad;
+		}
+		size_of_byte_stream += bytesToPad;
+	}
+	
 	aes_process_init(ethernet_key, mode);
 
 	// Loop till entire file is done
-	for(ii = 0; ii < data_len; ii += AES_BLOCKLEN)
+	for(ii = 0; ii < (data_len + bytesToPad); ii += AES_BLOCKLEN)
 	{
 		// Stream state to AES_PROCESS IP
+		dma_aes_process_transfer(ethernetAxiDma, inputBuf, outputBuf);
 		dma_aes_process_transfer(ethernetAxiDma, inputBuf, outputBuf);
 		inputBuf += AES_BLOCKLEN/4;
 		outputBuf += AES_BLOCKLEN/4;
@@ -383,6 +390,19 @@ void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, e
 			xil_printf("CANCEL FLAG WORKED");
 			return;
 		}
+	}
+
+	// Remove padding if decryption by adjusting the data_len
+	if(mode == DECRYPTION) {
+		int newFileSize = data_len;
+		uint8_t *outputBufEnd = (uint8_t *)RX_BUFFER_BASE + sizeof(size_of_byte_stream);
+		for(int i = data_len; i > data_len-16-1; i--) {
+			if(*(outputBufEnd+data_len-1) == *(outputBufEnd+i-2)) {
+				newFileSize-=1; // If last padding character matches previous, decrease file size
+			}
+		}
+		newFileSize-=1; // Remove original last one used for comparison
+		size_of_byte_stream = newFileSize;
 	}
 }
 
@@ -445,15 +465,16 @@ void send_data_over_ethernet(void)
 			xil_printf("\nSending data to host!\n");
 
 			// WARINING, SHITTY HACK, subtract one from size of byte stream because we aren't including the mode anymore
-			size_of_byte_stream--;
+			// TODO - I don't think this hack needs to be here, will confirm soon
+//			size_of_byte_stream -= sizeof(size_of_byte_stream);
 			memcpy(&size_of_byte_stream, outputBuf_ptr, sizeof(size_of_byte_stream));
-			if (size_of_byte_stream < TCP_SND_BUF)
+			if ((size_of_byte_stream + sizeof(size_of_byte_stream)) < TCP_SND_BUF)
 			{
 				//Great we can fit everything in one send!
 				err = tcp_write(pcb, outputBuf_ptr, size_of_byte_stream + sizeof(size_of_byte_stream), 1); // include sending the header
 				if (err != ERR_OK)
 				{
-					// Early return, stay in intial state
+					// Early return, stay in initial state
 					return;
 				}
 				else
