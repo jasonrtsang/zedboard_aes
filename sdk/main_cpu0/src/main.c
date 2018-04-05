@@ -119,7 +119,6 @@ int main(void){
 		cancelFlag = false;
 		// Main Menu selection
 		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
-		sd_init();
 		switch (choice) {
 			case 1: // ECB
 ecb_menu:
