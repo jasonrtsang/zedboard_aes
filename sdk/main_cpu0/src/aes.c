@@ -382,7 +382,7 @@ aes_sd_process_run_key:
 		// Init registers in AES_PROCESS IP
 		aes_process_init(switchKey, mode);
 
-
+		cancelFlag = false;
 		switch(type) {
 			case ECB:
 				 if(CANCELLED == _aes_ecb_run(axiDma, inputBuf, outputBuf, fileSizeRead+bytesToPad-1)) {

@@ -193,6 +193,8 @@ cbc_menu:
 				break;
 			case 3: // Ethernet
 				ethernet_mode_run(&axiDma);
+				usleep(250000); // Prevent un-debounced cancel interrupt
+				cancelFlag = false;
 				break;
 			case 4: // Reformat
 				if(!oled_confirmation_screen(reformatConfirmation)) {
