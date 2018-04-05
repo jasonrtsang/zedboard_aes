@@ -29,8 +29,11 @@ static XGpio gpioDpad;
 **/
 /*****************************************************************************/
 void _oled_format_cursor(char inputLine[], char *outputLine) {
-   int i = 1, length = 0;
+   int i = 1, j, length = 0;
 
+   for(j = 0; j < 16; j++) {
+	   outputLine[j] = '\0';
+   }
    outputLine[0] = '*';
 
    while(inputLine[length] != '\0') {
