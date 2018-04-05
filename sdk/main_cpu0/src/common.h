@@ -79,10 +79,11 @@ bool dma_init(XAxiDma *axiDma);
 bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *outputBuf);
 
 /**********************************  AES ************************************/
+#define AES_BLOCKLEN 16 // Block length in bytes for 128-bit AES
 void aes_init(void);
-enum STATUS aes_sd_process_run(enum AESMODE mode);
+enum STATUS aes_sd_process_run(enum AESMODE mode, XAxiDma *axiDma);
+bool aes_process_init(const uint8_t *key, enum AESMODE mode);
 
 /********************************** Ethernet ********************************/
-int ethernet_mode_run(void);
-
+int ethernet_mode_run(XAxiDma *axiDma);
 #endif /* SRC_COMMON_H_ */

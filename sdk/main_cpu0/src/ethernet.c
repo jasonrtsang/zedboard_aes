@@ -28,14 +28,26 @@ void lwip_init();
 err_t accept_callback(void *arg, struct tcp_pcb *newpcb, err_t err);
 // In platform.c
 void platform_enable_interrupts();
+void enable_cache_platform();
+void disable_cache_platform();
+void disable_timer_interrupt();
+void enable_timer_interrupt();
 
 extern volatile int dhcp_timoutcntr;
 err_t dhcp_start(struct netif *netif);
+
+void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, enum AESMODE mode);
 
 extern volatile int TcpFastTmrFlag;
 extern volatile int TcpSlowTmrFlag;
 static struct netif server_netif;
 struct netif *echo_netif;
+
+static XAxiDma *ethernetAxiDma;
+
+// TODO - Make an init funciton for these
+static int ethernet_initialized = 0;
+static int application_initialized = 0;
 
 typedef enum
 {
@@ -46,6 +58,7 @@ typedef enum
 
 // STATIC VARIABLES FOUND IN ECHO.C
 static u32 size_of_byte_stream = 0;
+static u32 header_info = 0;
 static u32 remaining_bytes = 0;
 static u8 *last_write_location;
 
@@ -54,6 +67,9 @@ u8* last_address_sent;
 
 static file_transfer_state_E recv_file_state = STATE_INITIAL;
 static file_transfer_state_E send_file_state = STATE_INITIAL;
+
+
+static struct ip_addr ipaddr, netmask, gw;
 
 static struct tcp_pcb *pcb;
 // END OF STATIC IN ECHO.C
@@ -82,65 +98,76 @@ void print_ip_settings(struct ip_addr *ip, struct ip_addr *mask, struct ip_addr 
 	print_ip("Gateway : ", gw);
 }
 
-
-int ethernet_mode_run(void)
+int ethernet_mode_run(XAxiDma *axiDma)
 {
-
+	// Notify the user of ethernet mode
 	oled_print_screen(enteringEthernetMode);
-	// Initialize ethernet interface
-	struct ip_addr ipaddr, netmask, gw;
 
-	/* the mac address of the board. this should be unique per board */
-	unsigned char mac_ethernet_address[] =
-	{ 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
-	
-	echo_netif = &server_netif;
-	
-	init_platform(); // WE WILL PROBABLY GET RID OF THIS, DO THE FUNCTIONALITY EARLIER
-	
-	ipaddr.addr = 0;
-	gw.addr = 0;
-	netmask.addr = 0;
-	
-	lwip_init();
-	
-	if (!xemac_add(echo_netif, &ipaddr, &netmask,
-						&gw, mac_ethernet_address,
-						XPAR_XEMACPS_0_BASEADDR)) {
-		xil_printf("Error adding N/W interface\n\r");
-		return -1;
-	}
-	netif_set_default(echo_netif);
-	
-	/* now enable interrupts */
-	platform_enable_interrupts();  // AGAIN, THIS IS ON A DIFFERENT PLATFORM, NEED TO FIX THIS
+	// Hold onto the axiDma address for use in the callback function
+	ethernetAxiDma = axiDma;
 
-	/* specify that the network if is up */
-	netif_set_up(echo_netif);
-	
-	/* Create a new DHCP client for this interface.
-	 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
-	 * the predefined regular intervals after starting the client.
-	 */
-	dhcp_start(echo_netif);
-	dhcp_timoutcntr = 24;
+	if (0 == ethernet_initialized)
+	{
+		/* the mac address of the board. this should be unique per board */
+		unsigned char mac_ethernet_address[] =
+		{ 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 
-	while(((echo_netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0))
-		xemacif_input(echo_netif);
+		echo_netif = &server_netif;
 
-	if (dhcp_timoutcntr <= 0) {
-		if ((echo_netif->ip_addr.addr) == 0) {
-			xil_printf("DHCP Timeout\r\n");
-			xil_printf("Configuring default IP of 192.168.1.10\r\n");
-			IP4_ADDR(&(echo_netif->ip_addr),  192, 168,   1, 10);
-			IP4_ADDR(&(echo_netif->netmask), 255, 255, 255,  0);
-			IP4_ADDR(&(echo_netif->gw),      192, 168,   1,  1);
+		init_platform();
+
+		ipaddr.addr = 0;
+		gw.addr = 0;
+		netmask.addr = 0;
+
+		lwip_init();
+
+		if (!xemac_add(echo_netif, &ipaddr, &netmask,
+							&gw, mac_ethernet_address,
+							XPAR_XEMACPS_0_BASEADDR)) {
+			xil_printf("Error adding N/W interface\n\r");
+			return -1;
 		}
-	}
+		netif_set_default(echo_netif);
 
-	ipaddr.addr = echo_netif->ip_addr.addr;
-	gw.addr = echo_netif->gw.addr;
-	netmask.addr = echo_netif->netmask.addr;
+		/* now enable interrupts */
+		platform_enable_interrupts();  // AGAIN, THIS IS ON A DIFFERENT PLATFORM, NEED TO FIX THIS
+	
+		/* specify that the network if is up */
+		netif_set_up(echo_netif);
+
+		/* Create a new DHCP client for this interface.
+		 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
+		 * the predefined regular intervals after starting the client.
+		 */
+		dhcp_start(echo_netif);
+		dhcp_timoutcntr = 24;
+	
+		while(((echo_netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0))
+			xemacif_input(echo_netif);
+	
+		if (dhcp_timoutcntr <= 0) {
+			if ((echo_netif->ip_addr.addr) == 0) {
+				xil_printf("DHCP Timeout\r\n");
+				xil_printf("Configuring default IP of 192.168.1.10\r\n");
+				IP4_ADDR(&(echo_netif->ip_addr),  192, 168,   1, 10);
+				IP4_ADDR(&(echo_netif->netmask), 255, 255, 255,  0);
+				IP4_ADDR(&(echo_netif->gw),      192, 168,   1,  1);
+			}
+		}
+	
+		ipaddr.addr = echo_netif->ip_addr.addr;
+		gw.addr = echo_netif->gw.addr;
+		netmask.addr = echo_netif->netmask.addr;
+
+		disable_cache_platform();
+
+		ethernet_initialized = 1;
+	}
+	else
+	{
+		// We are already initialized
+	}
 	
 	// TODO, PRINT IP ADDRESS AND PORT HERE ON OLED
 	print_ip_settings(&ipaddr, &netmask, &gw);
@@ -170,12 +197,11 @@ int ethernet_mode_run(void)
 		// TODO - NEED TO ADD CANCEL BUTTON INTERRUPT HERE
 		if (cancelFlag)
 		{
+			// Do some cleanup
+			tcp_close(pcb);
 			break;
 		}
 	}
-  
-	/* never reached */
-	cleanup_platform();
 
 	return 0;
 }
@@ -188,33 +214,40 @@ int start_application()
 {
 	err_t err;
 	unsigned port = 7;
+	if (application_initialized == 0)
+	{
+		/* create new TCP PCB structure */
+		pcb = tcp_new();
+		if (!pcb) {
+			xil_printf("Error creating PCB. Out of Memory\n\r");
+			return -1;
+		}
 
-	/* create new TCP PCB structure */  //Daniel - we may need to make this public so we can send stuff in another function
-	pcb = tcp_new();
-	if (!pcb) {
-		xil_printf("Error creating PCB. Out of Memory\n\r");
-		return -1;
+		/* bind to specified @port */
+		err = tcp_bind(pcb, IP_ADDR_ANY, port);
+		if (err != ERR_OK) {
+			xil_printf("Unable to bind to port %d: err = %d\n\r", port, err);
+			return -2;
+		}
+
+		/* we do not need any arguments to callback functions */
+		tcp_arg(pcb, NULL);
+
+		/* listen for connections */
+		pcb = tcp_listen(pcb);
+		if (!pcb) {
+			xil_printf("Out of memory while tcp_listen\n\r");
+			return -3;
+		}
+
+		/* specify callback to use for incoming connections */
+		tcp_accept(pcb, accept_callback);
+		application_initialized = 1;
 	}
-
-	/* bind to specified @port */
-	err = tcp_bind(pcb, IP_ADDR_ANY, port);
-	if (err != ERR_OK) {
-		xil_printf("Unable to bind to port %d: err = %d\n\r", port, err);
-		return -2;
+	else
+	{
+		// We have already set up the pcb
 	}
-
-	/* we do not need any arguments to callback functions */
-	tcp_arg(pcb, NULL);
-
-	/* listen for connections */
-	pcb = tcp_listen(pcb);
-	if (!pcb) {
-		xil_printf("Out of memory while tcp_listen\n\r");
-		return -3;
-	}
-
-	/* specify callback to use for incoming connections */
-	tcp_accept(pcb, accept_callback);
 
 	xil_printf("TCP echo server started @ port %d\n\r", port);
 
@@ -223,12 +256,16 @@ int start_application()
 	sprintf(printbuf, "        %i", port);
 	oled_print_line(printbuf, 3);
 
+	// Try adding the cancel button GIC back
+	gic_init();
+
 	return 0;
 }
 
 err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
                                struct pbuf *p, err_t err)
 {
+	enum AESMODE mode;
 	u8 *inputBuf_ptr = (u8*)TX_BUFFER_BASE;
 	u8 *outputBuf_ptr = (u8*)RX_BUFFER_BASE;
 	/* do not read the packet if we are not in ESTABLISHED state */
@@ -244,23 +281,26 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 	switch(recv_file_state)
 	{
 		case STATE_INITIAL:
-			// Grab the information from the header (how big will the file be?)
+			// Grab the information from the header (how big will the file be and what mode?)
 			memcpy(&size_of_byte_stream, p->payload, sizeof(size_of_byte_stream));
+			memcpy(&header_info, p->payload + sizeof(size_of_byte_stream), sizeof(header_info));
 
-			if (size_of_byte_stream > p->len - sizeof(size_of_byte_stream))
+			remaining_bytes = size_of_byte_stream - (p->len - sizeof(header_info));
+
+			if (0 == remaining_bytes)
+			{
+				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream) + sizeof(header_info)), p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
+				recv_file_state = STATE_TRANSFER_COMPLETE;
+			}
+			else
 			{
 				// We know to expect more packets, so get ready to come to this state machine again
 				recv_file_state = STATE_TRANSFER_NOT_COMPLETE;
 				// Now let's store that data
-				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream)), p->len - sizeof(size_of_byte_stream));
-				remaining_bytes = size_of_byte_stream - (p->len - sizeof(size_of_byte_stream));
+				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream) + sizeof(header_info)), p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
+				remaining_bytes = size_of_byte_stream - (p->len - sizeof(header_info));
 				// And we'll need to save the place in the buffer where to write the next bit of data
-				last_write_location = inputBuf_ptr + (p->len - sizeof(size_of_byte_stream));
-			}
-			else
-			{
-				memcpy(inputBuf_ptr, (p->payload + sizeof(size_of_byte_stream)), p->len - sizeof(size_of_byte_stream));
-				recv_file_state = STATE_TRANSFER_COMPLETE;
+				last_write_location = inputBuf_ptr + (p->len - sizeof(size_of_byte_stream) - sizeof(header_info));
 			}
 			break;
 		case STATE_TRANSFER_NOT_COMPLETE:
@@ -286,24 +326,64 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 			break;
 	}
 
+	/* free the received pbuf */
+	pbuf_free(p);
+
+
 	if (recv_file_state == STATE_TRANSFER_COMPLETE)
 	{
 		xil_printf("Data transfer complete\n\r");
 		recv_file_state = STATE_INITIAL;
 		send_file_state = STATE_INITIAL;
-		// now do stuff here like encrypt the data
-		// for now we'll just copy the data to our RX_Buffer and send that back
-		// THIS is where the encryption/decryption should occur
+
+		if (0 == header_info)
+		{
+			mode = ENCRYPTION;
+		}
+		else
+		{
+			mode = DECRYPTION;
+		}
+		// TODO - Temp memset, can remove soon
+		memset(outputBuf_ptr, 0xAD, 100);
+
+		disable_timer_interrupt();
+		// We want to remove the header info count from the byte stream size
+		size_of_byte_stream -= sizeof(header_info);
+
+		// Disable the encrypt/decrypt because it isn't working
+		perform_encryption((u32*)(outputBuf_ptr + sizeof(size_of_byte_stream)), (u32*)(inputBuf_ptr), size_of_byte_stream, mode); // Ignore the headers
+
+		enable_timer_interrupt();
 		memcpy(outputBuf_ptr, &size_of_byte_stream, sizeof(size_of_byte_stream)); // Add the byte header
-		memcpy(outputBuf_ptr + sizeof(size_of_byte_stream), inputBuf_ptr, size_of_byte_stream);
+
 		// Kick off the send data
 		send_data_over_ethernet();
 	}
 
-	/* free the received pbuf */
-	pbuf_free(p);
-
 	return ERR_OK;
+}
+
+void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, enum AESMODE mode)
+{
+	int ii = 0;
+	const uint8_t ethernet_key[16] = {0x72, 0x42, 0xf8, 0xeb, 0xe2, 0xca, 0x6c, 0x20, 0x6c, 0xd8, 0xdf, 0x1a, 0xcd, 0xe3, 0xfd, 0xe7};
+
+	aes_process_init(ethernet_key, mode);
+
+	// Loop till entire file is done
+	for(ii = 0; ii < data_len; ii += AES_BLOCKLEN)
+	{
+		// Stream state to AES_PROCESS IP
+		dma_aes_process_transfer(ethernetAxiDma, inputBuf, outputBuf);
+		inputBuf += AES_BLOCKLEN/4;
+		outputBuf += AES_BLOCKLEN/4;
+		// Cancel interrupt flag
+		if (cancelFlag) {
+			xil_printf("CANCEL FLAG WORKED");
+			return;
+		}
+	}
 }
 
 
@@ -363,6 +443,9 @@ void send_data_over_ethernet(void)
 		case STATE_INITIAL:
 			// Need to extract size of file to be transferred
 			xil_printf("\nSending data to host!\n");
+
+			// WARINING, SHITTY HACK, subtract one from size of byte stream because we aren't including the mode anymore
+			size_of_byte_stream--;
 			memcpy(&size_of_byte_stream, outputBuf_ptr, sizeof(size_of_byte_stream));
 			if (size_of_byte_stream < TCP_SND_BUF)
 			{

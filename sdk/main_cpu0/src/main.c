@@ -10,6 +10,8 @@
 
 /******************************* Definitions *********************************/
 #define sev() __asm__("sev")
+
+XAxiDma axiDma;
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -31,6 +33,7 @@ void _main_initialization(void) {
     oled_init(); // DPAD GPIO
     gic_init(); // GIC, BTN9 GPIO
     aes_init(); // DMA, Switches GPIO
+    dma_init(&axiDma);
 	sd_init(); // Mount SD
 
 	// Inter-processor setup for CPU1
@@ -124,10 +127,10 @@ ecb_menu:
 				choice = oled_selection_screen(ecbMenu, sizeof(ecbMenu)/4);
 				switch (choice) {
 					case 1: // Encrypt
-						aesStatus = aes_sd_process_run(ENCRYPTION);
+						aesStatus = aes_sd_process_run(ENCRYPTION, &axiDma);
 						break;
 					case 2: // Decrypt
-						aesStatus = aes_sd_process_run(DECRYPTION);
+						aesStatus = aes_sd_process_run(DECRYPTION, &axiDma);
 						break;
 					default:
 						aesStatus = EXIT;
@@ -157,8 +160,8 @@ ecb_menu:
 			case 2: // CBC
 				break;
 			case 3: // Ethernet
-				ethernet_mode_run();
-//				break;
+				ethernet_mode_run(&axiDma);
+				break;
 			case 4: // Reformat
 				if(!oled_confirmation_screen(reformatConfirmation)) {
 					break;
