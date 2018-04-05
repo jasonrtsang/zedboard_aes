@@ -180,37 +180,49 @@ enum STATUS _aes_cbc_run(uint32_t *inputBuf, uint32_t *outputBuf, int fileSize, 
 	int i;
 	const uint8_t iv_key[] =  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 	uint8_t *previousState  = malloc(AES_BLOCKLEN * sizeof(uint8_t));
+	uint8_t *storeNextIv  = malloc(AES_BLOCKLEN * sizeof(uint8_t));
 
 	memcpy(previousState, iv_key, AES_BLOCKLEN);
 
-	// Loop till entire file is done
-	for(i = 0; i < fileSize; i += AES_BLOCKLEN)
-	{
-		if(mode == ENCRYPTION) {
+	if(mode == ENCRYPTION) {
+		for(i = 0; i < fileSize; i += AES_BLOCKLEN) {
+
 			_aes_cbc_xor((uint8_t *)inputBuf, previousState);
-		}
+			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
+			memcpy(previousState, (uint8_t *)outputBuf, AES_BLOCKLEN);
 
-		// Stream state to AES_PROCESS IP
-		dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
 
-		if(mode == ENCRYPTION) {
-			memcpy(previousState, outputBuf, AES_BLOCKLEN);
-		}
-
-		if(mode == DECRYPTION) {
-			_aes_cbc_xor((uint8_t *)outputBuf, previousState);
-			memcpy(previousState, inputBuf, AES_BLOCKLEN);
-		}
-
-		inputBuf += AES_BLOCKLEN/4;
-		outputBuf += AES_BLOCKLEN/4;
-		// Cancel interrupt flag
-		if (cancelFlag) {
-			COMM_VAL = 0;
-			free(previousState);
-			return CANCELLED;
+			inputBuf += AES_BLOCKLEN/4;
+			outputBuf += AES_BLOCKLEN/4;
+			// Cancel interrupt flag
+			if (cancelFlag) {
+				COMM_VAL = 0;
+				free(previousState);
+				return CANCELLED;
+			}
 		}
 	}
+
+	if(mode == DECRYPTION) {
+		for(i = 0; i < fileSize; i += AES_BLOCKLEN) {
+
+			memcpy(storeNextIv, (uint8_t *)inputBuf, AES_BLOCKLEN);
+			dma_aes_process_transfer(&axiDma, inputBuf, outputBuf);
+			_aes_cbc_xor((uint8_t *)outputBuf, previousState);
+			memcpy(previousState, storeNextIv, AES_BLOCKLEN);
+
+
+			inputBuf += AES_BLOCKLEN/4;
+			outputBuf += AES_BLOCKLEN/4;
+			// Cancel interrupt flag
+			if (cancelFlag) {
+				COMM_VAL = 0;
+				free(previousState);
+				return CANCELLED;
+			}
+		}
+	}
+
 	free(previousState);
 	return DONE;
 
