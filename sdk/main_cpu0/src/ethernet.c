@@ -169,7 +169,6 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		// We are already initialized
 	}
 	
-	// TODO, PRINT IP ADDRESS AND PORT HERE ON OLED
 	print_ip_settings(&ipaddr, &netmask, &gw);
 	
 	oled_clear();
@@ -194,7 +193,6 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		}
 		xemacif_input(echo_netif);
 		transfer_data();
-		// TODO - NEED TO ADD CANCEL BUTTON INTERRUPT HERE
 		if (cancelFlag)
 		{
 			// Do some cleanup
@@ -246,7 +244,7 @@ int start_application()
 	}
 	else
 	{
-		// We have already set up the pcb
+		// NOOP - We have already set up the pcb
 	}
 
 	xil_printf("TCP echo server started @ port %d\n\r", port);
@@ -310,8 +308,6 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 			{
 				// We have gotten all the info!
 				recv_file_state = STATE_TRANSFER_COMPLETE;
-				//temporarily add NULL to end of buffer for printing purposes
-				*(last_write_location + p->len) = 0x00;
 			}
 			else
 			{
@@ -406,8 +402,6 @@ void perform_encryption(uint32_t *outputBuf, uint32_t *inputBuf, u32 data_len, e
 			}
 		}
 		newFileSize-=1; // Remove original last one used for comparison
-		data_len = newFileSize; // TODO Need to modify the header to be sent over TCP - this is not updated yet
-		// Let's see what data_len is compared to the header value, maybe we'll change it here
 		size_of_byte_stream = newFileSize;
 	}
 }
