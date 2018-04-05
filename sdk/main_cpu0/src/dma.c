@@ -6,7 +6,6 @@
  */
 
 #include "common.h"
-#include "xil_cache.h"
 
 /******************************* Definitions *********************************/
 #define DMA_DEV_ID		       XPAR_AXIDMA_0_DEVICE_ID

@@ -40,6 +40,7 @@ typedef uint8_t bool;
 #define true 1
 #define false 0
 
+enum AESTYPE {ECB, CBC};
 enum AESMODE {ENCRYPTION, DECRYPTION};
 enum STATUS {DONE, FAILED, BACK, CANCELLED, EXIT}; // Leaving 0 as default case
 
@@ -81,7 +82,7 @@ bool dma_aes_process_transfer(XAxiDma* axiDma, uint32_t *inputBuf, uint32_t *out
 /**********************************  AES ************************************/
 #define AES_BLOCKLEN 16 // Block length in bytes for 128-bit AES
 void aes_init(void);
-enum STATUS aes_sd_process_run(enum AESMODE mode, XAxiDma *axiDma);
+enum STATUS aes_sd_process_run(enum AESTYPE type, enum AESMODE mode, XAxiDma *axiDma);
 bool aes_process_init(const uint8_t *key, enum AESMODE mode);
 
 /********************************** Ethernet ********************************/

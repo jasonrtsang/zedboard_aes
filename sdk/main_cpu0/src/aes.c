@@ -10,7 +10,6 @@
 /******************************* Definitions *********************************/
 
 XGpio gpioSwitches;
-//XAxiDma axiDma;
 /*****************************************************************************/
 
 /*****************************************************************************/
@@ -126,7 +125,6 @@ void _getKeyValue(XGpio *gpioSwitches, uint8_t *switchKey) {
 **/
 /*****************************************************************************/
 void aes_init(void) {
-//	dma_init(&axiDma);
 
 	if(XST_SUCCESS != XGpio_Initialize(&gpioSwitches, XPAR_SW_LED_GPIO_AXI_DEVICE_ID)) {
 #if UART_PRINT
@@ -142,6 +140,128 @@ void aes_init(void) {
 /*****************************************************************************/
 /**
 *
+* XOR two states
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+void _aes_cbc_xor(uint8_t* buf, uint8_t* Iv)
+{
+  uint8_t i;
+  for (i = 0; i < AES_BLOCKLEN; ++i)
+  {
+    buf[i] ^= Iv[i];
+  }
+}
+
+/*****************************************************************************/
+/**
+*
+*
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+enum STATUS _aes_cbc_run(XAxiDma *axiDma, uint32_t *inputBuf, uint32_t *outputBuf, int fileSize, enum AESMODE mode)
+{
+	int i;
+	const uint8_t iv_key[] =  { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
+	uint8_t *previousState  = malloc(AES_BLOCKLEN * sizeof(uint8_t));
+//	uint8_t *storeNextIv  = malloc(AES_BLOCKLEN * sizeof(uint8_t));
+
+	memcpy(previousState, iv_key, AES_BLOCKLEN);
+
+
+	if(mode == ENCRYPTION) {
+		for(i = 0; i < fileSize; i += AES_BLOCKLEN) {
+
+			_aes_cbc_xor((uint8_t *)inputBuf, previousState);
+			dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
+			dma_aes_process_transfer(axiDma, inputBuf, outputBuf); // Workaround for some caching issue???????
+			memcpy(previousState, (uint8_t *)outputBuf, AES_BLOCKLEN);
+
+
+			inputBuf += AES_BLOCKLEN/4;
+			outputBuf += AES_BLOCKLEN/4;
+			// Cancel interrupt flag
+			if (cancelFlag) {
+				COMM_VAL = 0;
+				free(previousState);
+				return CANCELLED;
+			}
+		}
+	}
+
+	if(mode == DECRYPTION) {
+		for(i = 0; i < fileSize; i += AES_BLOCKLEN) {
+
+//			memcpy(storeNextIv, (uint8_t *)inputBuf, AES_BLOCKLEN);
+			dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
+			dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
+			_aes_cbc_xor((uint8_t *)outputBuf, previousState);
+			memcpy(previousState, inputBuf, AES_BLOCKLEN);
+
+
+			inputBuf += AES_BLOCKLEN/4;
+			outputBuf += AES_BLOCKLEN/4;
+			// Cancel interrupt flag
+			if (cancelFlag) {
+				COMM_VAL = 0;
+				free(previousState);
+				return CANCELLED;
+			}
+		}
+	}
+
+	free(previousState);
+	return DONE;
+
+}
+
+/*****************************************************************************/
+/**
+*
+*
+*
+* @param    None
+*
+* @return   None
+*
+* @note     None
+*
+**/
+/*****************************************************************************/
+enum STATUS _aes_ecb_run(XAxiDma *axiDma, uint32_t *inputBuf, uint32_t *outputBuf, int fileSize)
+{
+	int i;
+	// Loop till entire file is done
+	for(i = 0; i < fileSize; i += AES_BLOCKLEN)
+	{
+		// Stream state to AES_PROCESS IP
+		dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
+		inputBuf += AES_BLOCKLEN/4;
+		outputBuf += AES_BLOCKLEN/4;
+		// Cancel interrupt flag
+		if (cancelFlag) {
+			COMM_VAL = 0;
+			return CANCELLED;
+		}
+	}
+	return DONE;
+}
+
+/*****************************************************************************/
+/**
 * Main processing system for AES cipher for SD card
 *
 * @param    enum AESMODE mode         : Cipher mode
@@ -152,7 +272,7 @@ void aes_init(void) {
 *
 **/
 /*****************************************************************************/
-enum STATUS aes_sd_process_run(enum AESMODE mode, XAxiDma *axiDma)
+enum STATUS aes_sd_process_run(enum AESTYPE type, enum AESMODE mode, XAxiDma *axiDma)
 {
 	char* keyConfirmation[] =     {"  Please enter  ",
 							       " AES key using  ",
@@ -184,7 +304,6 @@ enum STATUS aes_sd_process_run(enum AESMODE mode, XAxiDma *axiDma)
     uint8_t switchKey[16];
 
     // DMA variables
-    int i;
     uint32_t *outputBuf = (u32*)RX_BUFFER_BASE;
     uint32_t *inputBuf = (u32*)TX_BUFFER_BASE;
 
@@ -263,21 +382,25 @@ aes_sd_process_run_key:
 		// Init registers in AES_PROCESS IP
 		aes_process_init(switchKey, mode);
 
-		// Loop till entire file is done
-		for(i = 0; i < fileSizeRead+bytesToPad-1; i += AES_BLOCKLEN)
-		{
-			// Stream state to AES_PROCESS IP
-			dma_aes_process_transfer(axiDma, inputBuf, outputBuf);
-			inputBuf += AES_BLOCKLEN/4;
-			outputBuf += AES_BLOCKLEN/4;
-			// Cancel interrupt flag
-			if (cancelFlag) {
-				COMM_VAL = 0;
+
+		switch(type) {
+			case ECB:
+				 if(CANCELLED == _aes_ecb_run(axiDma, inputBuf, outputBuf, fileSizeRead+bytesToPad-1)) {
+					 return CANCELLED;
+				 }
+				break;
+			case CBC:
+				 if(CANCELLED == _aes_cbc_run(axiDma, inputBuf, outputBuf, fileSizeRead+bytesToPad-1, mode)) {
+					 return CANCELLED;
+				 }
+				break;
+			default:
 				free(fileList);
 				free(fileListMenu);
-				return CANCELLED;
-			}
+				return FAILED; // Shouldn't reach here
+				break;
 		}
+
 
 		// Remove padding if decryption by adjusting the fileSizeRead
 		if(mode == DECRYPTION) {
