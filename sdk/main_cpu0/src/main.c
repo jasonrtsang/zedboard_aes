@@ -40,7 +40,7 @@ void _main_initialization(void) {
 	COMM_VAL = 0;
 	// Disable cache on OCM
 	Xil_SetTlbAttributes(0xFFFF0000, 0x14de2); // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
-	Xil_Out32(0xFFFFFFF0, 0x00200000); // 0xFFFFFFF0 = CPU1STARTADDR
+	Xil_Out32(0xFFFFFFF0, 0x00600000); // 0xFFFFFFF0 = CPU1STARTADDR
 	dmb(); // Waits until write has finished
 	sev(); // Send SEV to wake up CPU1
 }
@@ -67,7 +67,7 @@ int main(void){
 	char* mainMenu[] = {"Main Menu:      ",
 						"  ECB mode      ",
 						"  CBC mode      ",
-						"  Ethernet mode ",
+						"  Ethernet Mode ",
 						"  Reformat SD   ",
 						"  Quit          "};
 
@@ -119,6 +119,7 @@ int main(void){
 		cancelFlag = false;
 		// Main Menu selection
 		choice = oled_selection_screen(mainMenu, sizeof(mainMenu)/4);
+		sd_init();
 		switch (choice) {
 			case 1: // ECB
 ecb_menu:
