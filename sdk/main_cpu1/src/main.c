@@ -70,7 +70,12 @@ int main()
 							    "                ",
 							    "  % Completed   ",
 							    "                "};
+	char* overTimeScreen[] =   {"    Dawwww :(   ",
+							    "   I should be  ",
+							    "  done by now.. ",
+							    " Plz wait sorry "};
 	// Progress variables
+	bool overTime;
 	int secondsLeft;
 	double percentageComplete;
 	double percentageIncrements;
@@ -95,15 +100,16 @@ int main()
 		// First kick off initializations
 		if(firstLoop) {
 			percentageComplete = 0;
-			secondsLeft = FILESIZE_VAL/0x280000; // 10mb A0 0000 takes 4 seconds = 20 0000 per second
+			secondsLeft = FILESIZE_VAL/0x140000; // 10mb A0 0000 takes 8 seconds = 20 0000 per second
 			percentageIncrements = 100/(double)secondsLeft; // Rounding up decimal
 			ledLocation = 128; // 0b10000000
 			ledLoopCounter = 0;
 			firstLoop = false;
+			overTime = false;
 		}
 
 		// Print progress screen
-		if(COMM_VAL == 1) {
+		if(COMM_VAL == 1 && !overTime) {
 			oled_print_screen(processingScreen);
 			snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
 			oled_print_line(printBuf, 1);
@@ -123,8 +129,15 @@ int main()
 		ledLoopCounter = 0;
 
 		// Update progress variables
-		secondsLeft--;
-		percentageComplete += percentageIncrements;
+		if(secondsLeft > 0 && percentageComplete < 100) {
+			secondsLeft--;
+			percentageComplete += percentageIncrements;
+		} else {
+			overTime = true;
+		}
+		if(overTime) {
+			oled_print_screen(overTimeScreen);
+		}
 	}
 
     return 0; // Shouldn't reach here
