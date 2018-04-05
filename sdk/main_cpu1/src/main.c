@@ -110,11 +110,15 @@ int main()
 
 		// Print progress screen
 		if(COMM_VAL == 1 && !overTime) {
-			oled_print_screen(processingScreen);
-			snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
-			oled_print_line(printBuf, 1);
-			snprintf(printBuf, sizeof(printBuf), "      ~ %i", (int)percentageComplete);
-			oled_print_line(printBuf, 3);
+			if(overTime) {
+				oled_print_screen(overTimeScreen);
+			} else {
+				oled_print_screen(processingScreen);
+				snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
+				oled_print_line(printBuf, 1);
+				snprintf(printBuf, sizeof(printBuf), "      ~ %i", (int)percentageComplete);
+				oled_print_line(printBuf, 3);
+			}
 		}
 
 		// Loop 8 LEDS - 1 seconds loop
@@ -134,9 +138,6 @@ int main()
 			percentageComplete += percentageIncrements;
 		} else {
 			overTime = true;
-		}
-		if(overTime) {
-			oled_print_screen(overTimeScreen);
 		}
 	}
 
