@@ -75,9 +75,9 @@ static struct tcp_pcb *pcb;
 // END OF STATIC IN ECHO.C
 
 // Now let's have some stuff for the OLED
-char* enteringEthernetMode[] = {"    ENTERING    ",
-							    "    ETHERNET    ",
-							    "     MODE       ",
+char* enteringEthernetMode[] = {"                ",
+							    "   Starting up  ",
+							    "   Ethernet...  ",
 							    "                "};
 
 char printbuf[16];
@@ -173,7 +173,7 @@ int ethernet_mode_run(XAxiDma *axiDma)
 	
 	oled_clear();
 
-	sprintf(printbuf, "   Ethernet IP  ");
+	sprintf(printbuf, "Ethernet IP:");
 	oled_print_line(printbuf, 0);
 	sprintf(printbuf, "%d.%d.%d.%d", ip4_addr1(&ipaddr), ip4_addr2(&ipaddr),ip4_addr3(&ipaddr), ip4_addr4(&ipaddr));
 	oled_print_line(printbuf, 1);
@@ -249,9 +249,9 @@ int start_application()
 
 	xil_printf("TCP echo server started @ port %d\n\r", port);
 
-	sprintf(printbuf, "      Port      ");
+	sprintf(printbuf, "Port:");
 	oled_print_line(printbuf, 2);
-	sprintf(printbuf, "        %i", port);
+	sprintf(printbuf, "%i", port);
 	oled_print_line(printbuf, 3);
 
 	// Try adding the cancel button GIC back
