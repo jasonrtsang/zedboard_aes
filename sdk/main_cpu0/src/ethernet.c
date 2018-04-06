@@ -195,8 +195,6 @@ int ethernet_mode_run(XAxiDma *axiDma)
 		transfer_data();
 		if (cancelFlag)
 		{
-			// Do some cleanup
-			tcp_close(pcb);
 			break;
 		}
 	}
@@ -340,8 +338,6 @@ err_t recv_callback(void *arg, struct tcp_pcb *tpcb,
 		{
 			mode = DECRYPTION;
 		}
-		// TODO - Temp memset, can remove soon
-		memset(outputBuf_ptr, 0xAD, 100);
 
 		// We want to remove the header info count from the byte stream size
 		size_of_byte_stream -= sizeof(header_info);

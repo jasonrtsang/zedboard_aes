@@ -181,7 +181,7 @@ enum STATUS _aes_cbc_run(XAxiDma *axiDma, uint32_t *inputBuf, uint32_t *outputBu
 
 	memcpy(previousState, iv_key, AES_BLOCKLEN);
 
-
+	cancelFlag = false;
 	if(mode == ENCRYPTION) {
 		for(i = 0; i < fileSize; i += AES_BLOCKLEN) {
 
@@ -244,6 +244,7 @@ enum STATUS _aes_cbc_run(XAxiDma *axiDma, uint32_t *inputBuf, uint32_t *outputBu
 enum STATUS _aes_ecb_run(XAxiDma *axiDma, uint32_t *inputBuf, uint32_t *outputBuf, int fileSize)
 {
 	int i;
+	cancelFlag = false;
 	// Loop till entire file is done
 	for(i = 0; i < fileSize; i += AES_BLOCKLEN)
 	{
@@ -382,7 +383,6 @@ aes_sd_process_run_key:
 		// Init registers in AES_PROCESS IP
 		aes_process_init(switchKey, mode);
 
-		cancelFlag = false;
 		switch(type) {
 			case ECB:
 				 if(CANCELLED == _aes_ecb_run(axiDma, inputBuf, outputBuf, fileSizeRead+bytesToPad-1)) {
