@@ -9,8 +9,6 @@
 * `./src` (files specified within build.tcl)
   *  Files specified within `build.tcl`
   *  Usually block designs (BD) constraints
-  *  `/sources_1`
-  *  `/constrs_1`
 * `./build.tcl` (generated from Write Project to Tcl...)
 * `./build.bat` (launcher for `build.tcl`)
 
