@@ -2,6 +2,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- sBox.vhd
+-- Look up table for the sBox in both encryption and decryption
+-- Values taken from https://en.wikipedia.org/wiki/Rijndael_S-box
+
 entity sBox_encrypt is
     port (inByte  : in BYTE;
           outByte : out BYTE);     
@@ -17,7 +21,6 @@ entity sBox_decrypt is
 end sBox_decrypt;
 
 -- LUT for sBox, mapping to all 256 substitutions
--- https://en.wikipedia.org/wiki/Rijndael_S-box
 architecture behavioral of sBox_encrypt is
     begin
         with inByte select outByte <= 

@@ -2,6 +2,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- subBytes.vhd
+-- Substitutes an entire state's bytes (128 bits of data) with thier sBox mapped translation (1 to 1 mapping)
+-- Performs both encyryption or decryption depending on inMode
+
 entity subBytes is
     port (inMode   : in AES_MODE;
           inState  : in STATE;

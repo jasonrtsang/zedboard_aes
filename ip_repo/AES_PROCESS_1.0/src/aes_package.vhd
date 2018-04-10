@@ -1,6 +1,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 
+-- aes_package.vhd
+-- Contains the datatypes used throughout the AES project
+
 package aes_package is
     constant byte_size : positive := 8;
     constant word_size : positive := 4;

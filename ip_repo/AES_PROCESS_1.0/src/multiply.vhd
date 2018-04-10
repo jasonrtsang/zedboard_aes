@@ -2,6 +2,12 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.aes_package.BYTE;
 
+-- multiply.vhd
+-- Contains multiplication look up tables that are used in mixColumns
+-- Tables take in one byte at a time, and produce one byte at the output
+-- Tables include multiply by 2, 3, 9, B, D, and E
+-- Look up tables can be found at https://en.wikipedia.org/wiki/Rijndael_MixColumns
+
 entity multiply_2 is
 	port (i : in BYTE;
 			o : out BYTE
@@ -48,8 +54,8 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.aes_package.BYTE;
 entity multiply_e is
-	port (i : in std_logic_vector (7 downto 0); --This should be BYTE
-			o : out std_logic_vector (7 downto 0) -- This should be BYTE
+	port (i : in std_logic_vector (7 downto 0); --BYTE
+			o : out std_logic_vector (7 downto 0) -- BYTE
 			);
 end multiply_e;
 

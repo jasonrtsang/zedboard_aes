@@ -2,6 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- xorWord.vhd
+--XORs inWord1 with inWord2, outputs result in outWord
+
 entity xorWord is
     port (inWord1 : in  WORD;
           inWord2 : in  WORD;

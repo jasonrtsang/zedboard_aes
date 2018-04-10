@@ -2,6 +2,12 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use work.aes_package.all;
 
+-- nextState.vhd
+-- Hooks together the steps necessary in each round of the AES encyrption process
+-- For encryption: inState -> Sub Bytes -> Shift Rows -> Mix Columns -> Add Round Key -> outState
+-- For decryption: inState -> Inverse Shift Rows -> Inverse Sub Bytes -> Add Round Key -> Mix Columns -> outState
+-- Both encryption and decryption are calculated, and the proper output is sent per the mode in
+
 entity nextState is
 
 	port (inState : in  STATE;

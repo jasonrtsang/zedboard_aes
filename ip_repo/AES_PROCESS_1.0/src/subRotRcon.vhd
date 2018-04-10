@@ -2,6 +2,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- subRotRcon.vhd - Performs calculations for the Rijndael key schedule
+-- More detail can be found here: https://en.wikipedia.org/wiki/Rijndael_key_schedule
+-- Substitute input2 (xor'd) with sBox value, then XOR with rcon (round constant) and input1 for rotation
+
 entity subRotRcon is
     port (inWord1 : in  WORD;
           inWord2 : in  WORD;
@@ -9,7 +13,6 @@ entity subRotRcon is
           outWord : out WORD);
 end subRotRcon;
 
--- Substitute input2 (xor'd) with sBox value, then XOR with rcon and input1 for rotation
 architecture behavioral of subRotRcon is
     signal tmp : WORD;
 begin

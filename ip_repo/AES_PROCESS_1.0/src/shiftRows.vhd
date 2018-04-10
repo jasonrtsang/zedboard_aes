@@ -2,6 +2,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- shiftRows.vhd
+-- Performs both the encryption and decryption shift rows operation
+-- The first row remains untouched, while the subsequent rows are shifted around per the AES
+-- algorithm, which is preset and part of the standard:
+-- The second row is shifted one to the left, third and fourth row are shifted by two and three respectively
+
 entity shiftRows is
     port (inMode   : in AES_MODE;
 		  inState  : in STATE;

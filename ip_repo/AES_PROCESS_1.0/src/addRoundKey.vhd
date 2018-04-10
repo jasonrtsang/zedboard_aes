@@ -2,6 +2,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- addRoundKey.vhd
+-- Performs the Add Round Key operation of the AES process
+-- Essemtially XORs the inState with the inKey, and sets the output
+-- to outState
+
 entity addRoundKey is
     port (inState  : in  STATE;
           inKey    : in  STATE;

@@ -2,6 +2,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use work.aes_package.all;
 
+-- keyExpansion.vhd
+-- The single 128 bit inKey is expanded using Rijndael's Key Schedule
+-- to produce keys for the 10 rounds necessary in 128 bit AES encryption or decryption
+-- Details can be found at https://en.wikipedia.org/wiki/Rijndael_key_schedule
+
+
 entity keyExpansion is
     port (inMode      : in AES_MODE;
 		  inKey       : in  WORD_ARRAY  (0 to word_size-1);
