@@ -2,7 +2,7 @@
 
 **ONLY compatible with Vivado 2017.3**
 
-**boot.bin is prebuild and avaible within `./src` if you wish to just load ZedBoard AES system from an SD card**
+**boot.bin is prebuild and available within `./src` if you wish to just load the ZedBoard AES system from an SD card**
 
 #### Vivado File Structure
 * `./ip_repo` (if exists, holds custom IP blocks)
