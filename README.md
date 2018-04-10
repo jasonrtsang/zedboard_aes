@@ -1,9 +1,8 @@
 # AES Encryption/ Decryption on ZedBoard
 
-Project is currently **in progress**, below is the complicated overview of the source control for this ZedBoard project...
-Specific implementation details to come...
-
 **ONLY compatible with Vivado 2017.3**
+
+**boot.bin is prebuild and avaible within `./src` if you wish to just load ZedBoard AES system from an SD card**
 
 #### Vivado File Structure
 * `./ip_repo` (if exists, holds custom IP blocks)
@@ -54,5 +53,3 @@ Specific implementation details to come...
 #### Changes to Software
 * SDK project files should be all saved within `./sdk`
   * Any new projects within the SDK should be saved here 
-  * `/main`
-  * `/sd_bsp_0`

@@ -460,7 +460,6 @@ void send_data_over_ethernet(void)
 			// Need to extract size of file to be transferred
 			xil_printf("\nSending data to host!\n");
 
-			// WARINING, SHITTY HACK, subtract one from size of byte stream because we aren't including the mode anymore
 			// TODO - I don't think this hack needs to be here, will confirm soon
 //			size_of_byte_stream -= sizeof(size_of_byte_stream);
 			memcpy(&size_of_byte_stream, outputBuf_ptr, sizeof(size_of_byte_stream));
