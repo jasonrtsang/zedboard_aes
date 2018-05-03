@@ -2,20 +2,29 @@
 
 **ONLY compatible with Vivado 2017.3**
 
-**boot.bin is prebuild and available within `./src` if you wish to just load the ZedBoard AES system from an SD card**
-
 #### Vivado File Structure
-* `./ip_repo` (if exists, holds custom IP blocks)
-* `./src` (files specified within build.tcl)
-  *  Files specified within `build.tcl`
-  *  Usually block designs (BD) constraints
+* `./ip_repo` (custom hardware IP blocks)
+* `./sdk` (custom baremetal applications)
+* `./src` (support files specified within build.tcl)
 * `./build.tcl` (generated from Write Project to Tcl...)
 * `./build.bat` (launcher for `build.tcl`)
 
 #### SDK File Structure
-* `./sdk`
   * Project files to import after setup 
-  * Contains application and board support packages (BSP)
+* `./sdk/fsbl`
+  * First stage bootloader for boot.bin image
+* `./sdk/main_cpu0`
+  * Main application, kicks starts CPU1 after bootup
+  * Onboard SD AES Encryption/ Decryption
+  * External Ethernet Mode AES Encryption/ Decryption
+  * Reformatting SD Card
+* `./sdk/main_cpu1`
+  * Runs the progress status during SD AES Encryption/ Decryption
+* `./sdk/standalone_bsp_cpu0`
+  * CPU0 board support package
+  * Includes lwip and xilffs libraries
+* `./sdk/standalone_bsp_cpi1`
+  * CPU0 board support package
 
 ## Setup and Run
 * Run `build.bat`
@@ -23,31 +32,11 @@
 * Generate Bitstream and Export Hardware
 * Launch SDK
 * Import project files from `./sdk`
-
-## Updating Files
-
-#### Changes to Hardware
-* File -> Write Project to Tcl…
-* Select Recreate Block Designs using Tcl
-* Diff `build.tcl` with original
-  * Copy files required into `./ip_repo` or `./src` and update paths
-  * Set dynamic origin directory as so below: 
-
-   *Edit*:
-   ```
-   # Set the reference directory for source  file relative paths (by default the value is  script directory path)
-   set origin_dir [file dirname [info script]]
-   ```
-   ```
-   # Create project
-   create_project ${project_name} ${origin_dir} -part xc7z020clg484-1
-   ```
-   *Remove*:
-   ```
-   # Set the directory path for the original project from where this script was exported
-   set orig_proj_dir "[file normalize "$origin_dir/zedboard_aes"]"
-   ```
-
-#### Changes to Software
-* SDK project files should be all saved within `./sdk`
-  * Any new projects within the SDK should be saved here 
+## OR
+* Copy `boot.bin` within `./src` to an SD card and bridge pins JP9 and JP10
+  * Built using Create Zynq Boot Image
+  * Layering:
+    * fsbl
+    * system_wrapper.bit
+    * main_cpu0.elf
+    * main_cpu1.elf
