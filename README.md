@@ -1,8 +1,13 @@
 # AES Encryption/ Decryption on ZedBoard
 
 **ONLY compatible with Vivado 2017.3**
+* This is a demoable prototype - not fully optimized
+* Reference Document: **[here](./docs/zedboard_aes_group_report.pdf)**
+
+![Alt Text](./docs/zedboard_aes_demo.gif)
 
 #### Vivado File Structure
+* `./docs` (documents)
 * `./ip_repo` (custom hardware IP blocks)
 * `./sdk` (custom baremetal applications)
 * `./src` (support files specified within build.tcl)
@@ -32,7 +37,7 @@
 * Generate Bitstream and Export Hardware
 * Launch SDK
 * Import project files from `./sdk`
-## OR
+#### Run From Pre-built Image
 * Copy `boot.bin` within `./src` to an SD card and bridge pins JP9 and JP10
   * Built using Create Zynq Boot Image
   * Layering:
