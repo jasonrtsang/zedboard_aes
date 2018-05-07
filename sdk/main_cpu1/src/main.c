@@ -34,19 +34,19 @@ typedef uint8_t bool;
 /*****************************************************************************/
 void _main_initialization(void) {
 
-	// Init LEDs
-	if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
-	#if UART_PRINT
-			printf("UH OH: GPIO2 LEDS initialization failed\r\n");
-	#endif
-	};
-	// Set LEDs as output, GPIO pins 2 on HW block
-	XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
+    // Init LEDs
+    if(XGpio_Initialize(&gpioLeds, XPAR_SW_LED_GPIO_AXI_DEVICE_ID) != XST_SUCCESS) {
+    #if UART_PRINT
+            printf("UH OH: GPIO2 LEDS initialization failed\r\n");
+    #endif
+    };
+    // Set LEDs as output, GPIO pins 2 on HW block
+    XGpio_SetDataDirection(&gpioLeds, 2, 0x0000);
 
-	// Inter-processor setup with CPU0
-	COMM_VAL = 0;
-	// Disable cache on OCM
-	Xil_SetTlbAttributes(0xFFFF0000, 0x14de2); // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
+    // Inter-processor setup with CPU0
+    COMM_VAL = 0;
+    // Disable cache on OCM
+    Xil_SetTlbAttributes(0xFFFF0000, 0x14de2); // S=b1 TEX=b100 AP=b11, Domain=b1111, C=b0, B=b0
 }
 
 /*****************************************************************************/
@@ -64,82 +64,82 @@ void _main_initialization(void) {
 /*****************************************************************************/
 int main()
 {
-	_main_initialization();
+    _main_initialization();
 
-	char* processingScreen[] = {"  Seconds Left  ",
-							    "                ",
-							    "  % Completed   ",
-							    "                "};
-	char* overTimeScreen[] =   {"    Dawwww :(   ",
-							    "   I should be  ",
-							    "  done by now.. ",
-							    " Plz wait sorry "};
-	// Progress variables
-	bool overTime;
-	int secondsLeft;
-	double percentageComplete;
-	double percentageIncrements;
-	uint8_t ledLocation;
-	int ledLoopCounter;
-	bool firstLoop;
-	// Print line buffer
-	char printBuf[16];
-	// Toggle all LEDs on bootup
-	XGpio_DiscreteWrite(&gpioLeds, 2, 0xFF);
-	usleep(LED_DELAY);
+    char* processingScreen[] = {"  Seconds Left  ",
+                                "                ",
+                                "  % Completed   ",
+                                "                "};
+    char* overTimeScreen[] =   {"    Dawwww :(   ",
+                                "   I should be  ",
+                                "  done by now.. ",
+                                " Plz wait sorry "};
+    // Progress variables
+    bool overTime;
+    int secondsLeft;
+    double percentageComplete;
+    double percentageIncrements;
+    uint8_t ledLocation;
+    int ledLoopCounter;
+    bool firstLoop;
+    // Print line buffer
+    char printBuf[16];
+    // Toggle all LEDs on bootup
+    XGpio_DiscreteWrite(&gpioLeds, 2, 0xFF);
+    usleep(LED_DELAY);
 
-	while(1){
+    while(1){
 
-		// Turn off all LEDs
-		XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
+        // Turn off all LEDs
+        XGpio_DiscreteWrite(&gpioLeds, 2, 0x00);
 
-		// Trap when processing not on
-		while(COMM_VAL == 0){
-			firstLoop = true;
-		}
-		// First kick off initializations
-		if(firstLoop) {
-			percentageComplete = 0;
-			secondsLeft = FILESIZE_VAL/0x140000; // 10mb A0 0000 takes 8 seconds = 20 0000 per second
-			percentageIncrements = 100/(double)secondsLeft; // Rounding up decimal
-			ledLocation = 128; // 0b10000000
-			ledLoopCounter = 0;
-			firstLoop = false;
-			overTime = false;
-		}
+        // Trap when processing not on
+        while(COMM_VAL == 0){
+            firstLoop = true;
+        }
+        // First kick off initializations
+        if(firstLoop) {
+            percentageComplete = 0;
+            secondsLeft = FILESIZE_VAL/0x140000; // 10mb A0 0000 takes 8 seconds = 20 0000 per second
+            percentageIncrements = 100/(double)secondsLeft; // Rounding up decimal
+            ledLocation = 128; // 0b10000000
+            ledLoopCounter = 0;
+            firstLoop = false;
+            overTime = false;
+        }
 
-		// Print progress screen
-		if(COMM_VAL == 1 && !overTime) {
-			if(overTime) {
-				oled_print_screen(overTimeScreen);
-			} else {
-				oled_print_screen(processingScreen);
-				snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
-				oled_print_line(printBuf, 1);
-				snprintf(printBuf, sizeof(printBuf), "      ~ %i", (int)percentageComplete);
-				oled_print_line(printBuf, 3);
-			}
-		}
+        // Print progress screen
+        if(COMM_VAL == 1 && !overTime) {
+            if(overTime) {
+                oled_print_screen(overTimeScreen);
+            } else {
+                oled_print_screen(processingScreen);
+                snprintf(printBuf, sizeof(printBuf), "      ~ %i", secondsLeft);
+                oled_print_line(printBuf, 1);
+                snprintf(printBuf, sizeof(printBuf), "      ~ %i", (int)percentageComplete);
+                oled_print_line(printBuf, 3);
+            }
+        }
 
-		// Loop 8 LEDS - 1 seconds loop
-		while(COMM_VAL == 1 && ledLoopCounter < 8) {
-			XGpio_DiscreteWrite(&gpioLeds, 2, ledLocation);
-			usleep(LED_DELAY);
-			ledLocation = ledLocation >> 1;
-			ledLoopCounter++;
-		}
-		// Reset back to start
-		ledLocation = 128;
-		ledLoopCounter = 0;
+        // Loop 8 LEDS - 1 seconds loop
+        while(COMM_VAL == 1 && ledLoopCounter < 8) {
+            XGpio_DiscreteWrite(&gpioLeds, 2, ledLocation);
+            usleep(LED_DELAY);
+            ledLocation = ledLocation >> 1;
+            ledLoopCounter++;
+        }
+        // Reset back to start
+        ledLocation = 128;
+        ledLoopCounter = 0;
 
-		// Update progress variables
-		if(secondsLeft > 0 && percentageComplete < 100) {
-			secondsLeft--;
-			percentageComplete += percentageIncrements;
-		} else {
-			overTime = true;
-		}
-	}
+        // Update progress variables
+        if(secondsLeft > 0 && percentageComplete < 100) {
+            secondsLeft--;
+            percentageComplete += percentageIncrements;
+        } else {
+            overTime = true;
+        }
+    }
 
     return 0; // Shouldn't reach here
 }

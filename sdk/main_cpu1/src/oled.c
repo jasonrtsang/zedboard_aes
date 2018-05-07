@@ -30,19 +30,19 @@
 /*****************************************************************************/
 void _oled_refresh_oled(char* printLines[], int numOfLines, int index) {
 
-	clear();
-	if(index < numOfLines) {
-		print_message(printLines[index], 0);
-	}
-	if(index+1 < numOfLines) {
-		print_message(printLines[index+1], 1);
-	}
-	if(index+2 < numOfLines) {
-		print_message(printLines[index+2], 2);
-	}
-	if(index+3 < numOfLines) {
-		print_message(printLines[index+3], 3);
-	}
+    clear();
+    if(index < numOfLines) {
+        print_message(printLines[index], 0);
+    }
+    if(index+1 < numOfLines) {
+        print_message(printLines[index+1], 1);
+    }
+    if(index+2 < numOfLines) {
+        print_message(printLines[index+2], 2);
+    }
+    if(index+3 < numOfLines) {
+        print_message(printLines[index+3], 3);
+    }
 }
 
 /*****************************************************************************/
@@ -59,7 +59,7 @@ void _oled_refresh_oled(char* printLines[], int numOfLines, int index) {
 **/
 /*****************************************************************************/
 void oled_clear(void) {
-	clear();
+    clear();
 }
 
 /*****************************************************************************/
@@ -72,12 +72,12 @@ void oled_clear(void) {
 * @return   None
 *
 * @note     Expects each line to be 16 char aligned
-* 			Expects 4 lines in input
+*           Expects 4 lines in input
 *
 **/
 /*****************************************************************************/
 void oled_print_screen(char* printLines[]) {
-	_oled_refresh_oled(printLines, 4, 0);
+    _oled_refresh_oled(printLines, 4, 0);
 }
 
 /*****************************************************************************/
@@ -94,5 +94,5 @@ void oled_print_screen(char* printLines[]) {
 **/
 /*****************************************************************************/
 void oled_print_line(char* printLine, int index) {
-	print_message(printLine, index);
+    print_message(printLine, index);
 }

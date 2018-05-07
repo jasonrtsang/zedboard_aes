@@ -26,12 +26,12 @@ bool cancelFlag = false;
 * handler set by the function XGpioPs_SetBankHandler(). The callback is called
 * when an interrupt
 *
-* @param	InstancePtr is a pointer to the XGpioPs instance.
+* @param    InstancePtr is a pointer to the XGpioPs instance.
 *
-* @return	None.
+* @return   None.
 *
-* @note		This function does not save and restore the processor context
-*		such that the user must provide this processing.
+* @note     This function does not save and restore the processor context
+*       such that the user must provide this processing.
 *
 **/
 /*****************************************************************************/
@@ -96,59 +96,59 @@ void _gic_cancel_interrupt_handler(void *callBackRef, int bank, u32 status)
 /*****************************************************************************/
 bool gic_init(void)
 {
-	static XScuGic gicInstancePtr; // Gic Interrupt controller instance
-	XScuGic_Config *intcConfig; // Interrupt controller for BTN9
-	static XGpioPs gpioBtn; // Instance for BTN9
-	XGpioPs_Config *gpioConfigPtr; // Configuration for BTN9
+    static XScuGic gicInstancePtr; // Gic Interrupt controller instance
+    XScuGic_Config *intcConfig; // Interrupt controller for BTN9
+    static XGpioPs gpioBtn; // Instance for BTN9
+    XGpioPs_Config *gpioConfigPtr; // Configuration for BTN9
 
-	/* MIO51 BTN9 Setup*/
-	gpioConfigPtr = XGpioPs_LookupConfig(XPAR_XGPIOPS_0_DEVICE_ID);
-	if(XGpioPs_CfgInitialize(&gpioBtn, gpioConfigPtr, gpioConfigPtr->BaseAddr) != XST_SUCCESS) {
+    /* MIO51 BTN9 Setup*/
+    gpioConfigPtr = XGpioPs_LookupConfig(XPAR_XGPIOPS_0_DEVICE_ID);
+    if(XGpioPs_CfgInitialize(&gpioBtn, gpioConfigPtr, gpioConfigPtr->BaseAddr) != XST_SUCCESS) {
 #if UART_PRINT
-		 print("MIO51 BTN9 INIT FAILED\n\r");
+         print("MIO51 BTN9 INIT FAILED\n\r");
 #endif
-		 return false;
-	}
-	// Set direction of BTN9 as input
-	XGpioPs_SetDirectionPin(&gpioBtn, BTN9, 0x0);
+         return false;
+    }
+    // Set direction of BTN9 as input
+    XGpioPs_SetDirectionPin(&gpioBtn, BTN9, 0x0);
 
-	Xil_ExceptionInit();
+    Xil_ExceptionInit();
 
-	/*
-	 * Initialize the interrupt controller driver so that it is ready to
-	 * use.
-	 */
-	intcConfig = XScuGic_LookupConfig(INTC_DEVICE_ID);
+    /*
+     * Initialize the interrupt controller driver so that it is ready to
+     * use.
+     */
+    intcConfig = XScuGic_LookupConfig(INTC_DEVICE_ID);
 
-	XScuGic_CfgInitialize(&gicInstancePtr, intcConfig, intcConfig->CpuBaseAddress);
+    XScuGic_CfgInitialize(&gicInstancePtr, intcConfig, intcConfig->CpuBaseAddress);
 
-	/*
-	 * Connect the interrupt controller interrupt handler to the hardware
-	 * interrupt handling logic in the processor.
-	 */
-	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, &gicInstancePtr);
+    /*
+     * Connect the interrupt controller interrupt handler to the hardware
+     * interrupt handling logic in the processor.
+     */
+    Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT, (Xil_ExceptionHandler)XScuGic_InterruptHandler, &gicInstancePtr);
 
-	/*
-	 * Connect the device driver handler that will be called when an
-	 * interrupt for the device occurs, the handler defined above performs
-	 * the specific interrupt processing for the device.
-	 */
-	XScuGic_Connect(&gicInstancePtr, GPIO_INTERRUPT_ID, (Xil_ExceptionHandler)_XGpioPs_IntrHandler_EDIT, (void *)&gpioBtn);
+    /*
+     * Connect the device driver handler that will be called when an
+     * interrupt for the device occurs, the handler defined above performs
+     * the specific interrupt processing for the device.
+     */
+    XScuGic_Connect(&gicInstancePtr, GPIO_INTERRUPT_ID, (Xil_ExceptionHandler)_XGpioPs_IntrHandler_EDIT, (void *)&gpioBtn);
 
-	// Enable  interrupts for all the pins in bank 0
-	XGpioPs_SetIntrTypePin(&gpioBtn, BTN9, XGPIOPS_IRQ_TYPE_EDGE_RISING);
+    // Enable  interrupts for all the pins in bank 0
+    XGpioPs_SetIntrTypePin(&gpioBtn, BTN9, XGPIOPS_IRQ_TYPE_EDGE_RISING);
 
-	// Set the handler for GPIO interrupts
-	XGpioPs_SetCallbackHandler(&gpioBtn, (void *)&gpioBtn, (XGpioPs_Handler)_gic_cancel_interrupt_handler);
+    // Set the handler for GPIO interrupts
+    XGpioPs_SetCallbackHandler(&gpioBtn, (void *)&gpioBtn, (XGpioPs_Handler)_gic_cancel_interrupt_handler);
 
-	// Enable the GPIO interrupts of Bank 0
-	XGpioPs_IntrEnablePin(&gpioBtn, BTN9);
+    // Enable the GPIO interrupts of Bank 0
+    XGpioPs_IntrEnablePin(&gpioBtn, BTN9);
 
-	// Enable the interrupt for the GPIO device
-	XScuGic_Enable(&gicInstancePtr, GPIO_INTERRUPT_ID);
+    // Enable the interrupt for the GPIO device
+    XScuGic_Enable(&gicInstancePtr, GPIO_INTERRUPT_ID);
 
-	// Enable interrupts in the Processor
-	Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
+    // Enable interrupts in the Processor
+    Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
 
-	return true;
+    return true;
 }
