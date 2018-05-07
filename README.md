@@ -1,7 +1,11 @@
 # AES Encryption/ Decryption on ZedBoard
 
 **ONLY compatible with Vivado 2017.3**
-* This is a demoable prototype - not fully optimized
+* This is a demoable prototype
+  * Features file encryption/ decryption through:
+    * File selection from an SD card
+    * File sent over Ethernet
+  * Not fully optimized
 * Reference Document: **[here](./docs/zedboard_aes_group_report.pdf)**
 
 ![Alt Text](./docs/zedboard_aes_demo.gif)
@@ -41,7 +45,7 @@
 * Copy `boot.bin` within `./src` to an SD card and bridge pins JP9 and JP10
   * Built using Create Zynq Boot Image
   * Layering:
-    * fsbl
-    * system_wrapper.bit
-    * main_cpu0.elf
-    * main_cpu1.elf
+    * `fsbl.elf`
+    * `system_wrapper.bit`
+    * `main_cpu0.elf`
+    * `main_cpu1.elf`
